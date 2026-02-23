@@ -3,8 +3,53 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>HOROLOG — Watch Inventory</title>
+<title>Empire Watches — Inventaris</title>
 <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Libre+Barcode+128+Text&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<!-- Firebase -->
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
+import { getFirestore, collection, onSnapshot, doc, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+
+// ─────────────────────────────────────────────────────────────────
+// PASTE YOUR FIREBASE CONFIG HERE
+// Go to: console.firebase.google.com → Your Project → Project Settings → Your Apps → SDK setup
+// ─────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "",
+  authDomain: "",
+  projectId: "",
+  storageBucket: "",
+  messagingSenderId: "",
+  appId: ""
+};
+// ─────────────────────────────────────────────────────────────────
+
+const configured = firebaseConfig.projectId && firebaseConfig.projectId.length > 0;
+
+if (configured) {
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const col = collection(db, 'inventory');
+
+  // Expose to global scope for use in main script
+  window._db = db;
+  window._col = col;
+  window._docRef = (id) => doc(db, 'inventory', id);
+  window._onSnapshot = onSnapshot;
+  window._setDoc = setDoc;
+  window._deleteDoc = deleteDoc;
+  window._firebaseReady = true;
+
+  // Real-time listener — updates UI whenever data changes in Firestore
+  onSnapshot(col, (snapshot) => {
+    window.watches = snapshot.docs.map(d => d.data());
+    if (window.renderGrid) window.renderGrid();
+  });
+} else {
+  window._firebaseReady = false;
+  console.warn('Firebase not configured. Running in local-only mode.');
+}
+</script>
 <style>
   :root {
     --bg: #0a0a0a;
@@ -942,10 +987,16 @@
       <div class="stat-num" id="total-count">0</div>
       <div class="stat-label">Artikelen</div>
     </div>
+    <div id="sync-status" style="font-size:0.55rem;font-family:'Space Mono',monospace;letter-spacing:0.05rem;color:var(--text-muted);align-self:center"></div>
     <button class="btn-add" id="btn-add-item" onclick="openModal()" style="display:none">+ Toevoegen</button>
     <button class="admin-btn" id="admin-btn" onclick="handleAdminBtn()" title="Admin">🔒</button>
   </div>
 </header>
+
+<div id="firebase-banner" style="display:none;background:rgba(201,168,76,0.08);border-bottom:1px solid rgba(201,168,76,0.2);padding:0.7rem 1.5rem;font-family:'Space Mono',monospace;font-size:0.6rem;color:var(--gold);letter-spacing:0.05rem;line-height:1.8">
+  ⚠ Firebase niet geconfigureerd — data wordt alleen lokaal opgeslagen op dit apparaat.<br>
+  <span style="color:var(--text-muted)">Voeg je Firebase-configuratie toe in de broncode om sync tussen apparaten te activeren. Zie de instructies onderaan dit bericht.</span>
+</div>
 
 <div class="category-tabs">
   <button class="cat-tab active" id="cat-watches" onclick="setCategory('watches')">⌚ Horloges</button>
@@ -1230,6 +1281,41 @@ let currentView = 'grid';
 let isAdmin = false;
 let currentCategory = 'watches';
 
+// Make watches accessible to Firebase listener
+window.watches = watches;
+Object.defineProperty(window, 'watches', {
+  get() { return watches; },
+  set(v) { watches = v; localStorage.setItem('horolog_watches', JSON.stringify(v)); }
+});
+
+// Show sync status indicator
+function setSyncStatus(status) {
+  const el = document.getElementById('sync-status');
+  if (!el) return;
+  if (status === 'syncing') { el.textContent = '↑ Opslaan...'; el.style.color = 'var(--gold)'; }
+  else if (status === 'ok') { el.textContent = '✓ Gesynchroniseerd'; el.style.color = '#4caf50'; }
+  else if (status === 'local') { el.textContent = '⚠ Lokaal (geen Firebase)'; el.style.color = 'var(--text-muted)'; }
+  else if (status === 'error') { el.textContent = '✕ Fout bij opslaan'; el.style.color = '#f44336'; }
+}
+
+async function save() {
+  // Always save to localStorage as cache
+  localStorage.setItem('horolog_watches', JSON.stringify(watches));
+  if (!window._firebaseReady) { setSyncStatus('local'); return; }
+  setSyncStatus('syncing');
+  try {
+    // Save each watch as its own Firestore document (by id)
+    for (const w of watches) {
+      await window._setDoc(window._docRef(w.id), w);
+    }
+    setSyncStatus('ok');
+    setTimeout(() => setSyncStatus(''), 2000);
+  } catch(e) {
+    console.error('Firebase save error:', e);
+    setSyncStatus('error');
+  }
+}
+
 const DEFAULT_PASSWORD = 'admin1234';
 
 function getPassword() {
@@ -1307,10 +1393,6 @@ function doChangePw() {
   localStorage.setItem('horolog_pw', newPw);
   closeChangePw();
   alert('Wachtwoord succesvol gewijzigd.');
-}
-
-function save() {
-  localStorage.setItem('horolog_watches', JSON.stringify(watches));
 }
 
 function genId() {
@@ -1724,11 +1806,19 @@ function saveWatch() {
   renderGrid();
 }
 
-function deleteWatch(id) {
+async function deleteWatch(id) {
   if (!isAdmin) return;
-  if (!confirm('Remove this item from inventory?')) return;
+  if (!confirm('Dit artikel verwijderen uit de inventaris?')) return;
   watches = watches.filter(w=>w.id!==id);
-  save();
+  localStorage.setItem('horolog_watches', JSON.stringify(watches));
+  if (window._firebaseReady) {
+    setSyncStatus('syncing');
+    try {
+      await window._deleteDoc(window._docRef(id));
+      setSyncStatus('ok');
+      setTimeout(() => setSyncStatus(''), 2000);
+    } catch(e) { setSyncStatus('error'); }
+  }
   renderGrid();
 }
 
@@ -1746,6 +1836,17 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Escape') { closeModal(); closeDetail(); closeStock(); closeLogin(); closeChangePw(); }
   if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); document.getElementById('search-input').focus(); }
 });
+
+// Expose renderGrid for Firebase real-time listener
+window.renderGrid = renderGrid;
+
+// Show firebase banner if not configured (check after module has had time to set flag)
+setTimeout(() => {
+  if (!window._firebaseReady) {
+    document.getElementById('firebase-banner').style.display = 'block';
+    setSyncStatus('local');
+  }
+}, 300);
 
 renderGrid();
 </script>
