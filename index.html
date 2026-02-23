@@ -868,110 +868,126 @@ if (configured) {
   /* ── MOBILE ── */
   @media (max-width: 600px) {
     /* Prevent iOS input zoom */
-    input[type=text], input[type=number], input[type=url], select, textarea {
-      font-size: 16px;
-    }
+    input[type=text], input[type=number], input[type=url],
+    input[type=password], select, textarea { font-size: 16px !important; }
 
+    /* Header */
     header {
-      padding: 0 1rem;
+      padding: 0.75rem 1rem;
       height: auto;
       flex-wrap: wrap;
-      gap: 0.6rem;
-      padding-top: 0.8rem;
-      padding-bottom: 0.8rem;
+      gap: 0.5rem;
     }
-
-    .logo { font-size: 1.3rem; letter-spacing: 0.3rem; }
+    .logo { font-size: 1.2rem; letter-spacing: 0.25rem; }
     .logo span { display: none; }
-
-    .header-stats { gap: 1rem; }
+    .header-stats { gap: 0.8rem; flex-wrap: nowrap; }
     .stat-num { font-size: 1rem; }
+    #sync-status { display: none; } /* hide on mobile to save space */
 
-    .btn-add {
-      padding: 0.5rem 1rem;
-      font-size: 0.65rem;
-      clip-path: none;
-    }
+    /* Category tabs */
+    .category-tabs { padding: 0 1rem; }
+    .cat-tab { padding: 0.75rem 1rem; font-size: 0.6rem; }
 
+    /* Toolbar — stack filters in 2 columns */
     .toolbar {
-      padding: 0.8rem 1rem;
-      gap: 0.6rem;
+      padding: 0.75rem 1rem;
+      gap: 0.5rem;
+      display: grid;
+      grid-template-columns: 1fr 1fr;
     }
+    .search-wrap { grid-column: 1 / -1; }
+    .toolbar select { width: 100%; min-width: 0; }
+    #filter-model { grid-column: 1 / -1; }
+    .view-toggle { justify-self: end; align-self: center; }
+    #sort-by { align-self: center; }
 
-    .toolbar select { flex: 1; min-width: 0; }
+    /* Section meta */
+    .section-meta { padding: 0.5rem 1rem; font-size: 0.6rem; }
 
-    .section-meta { padding: 0.6rem 1rem; }
-
-    .main { padding: 1rem; }
-
+    /* Grid — 2 columns on mobile */
+    .main { padding: 0.75rem; }
     .grid {
-      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      grid-template-columns: 1fr 1fr;
       gap: 1px;
     }
 
-    /* Always show card action buttons on touch */
+    /* Cards */
+    .card-name { font-size: 0.85rem; }
+    .card-model { font-size: 0.65rem; }
+    .card-body { padding: 0.6rem; }
+
+    /* Always show card action buttons */
     .card-actions {
       opacity: 1;
-      background: linear-gradient(transparent, rgba(0,0,0,0.6));
+      background: linear-gradient(transparent, rgba(0,0,0,0.75));
       padding: 0.4rem;
+      gap: 0.3rem;
     }
+    .icon-btn { width: 32px; height: 32px; font-size: 0.85rem; }
 
-    .icon-btn { width: 34px; height: 34px; font-size: 0.9rem; }
-
-    /* Modal full screen on mobile */
+    /* Modals — slide up from bottom */
     .overlay { align-items: flex-end; }
-
     .modal {
       width: 100%;
       max-width: 100%;
       max-height: 92vh;
-      border-bottom: none;
       border-radius: 0;
+      border-bottom: none;
     }
+    .modal-body { padding: 1rem; gap: 0.9rem; }
+    .modal-header { padding: 0.9rem 1rem; }
+    .modal-footer {
+      padding: 0.9rem 1rem;
+      gap: 0.6rem;
+      display: flex;
+    }
+    .modal-footer .btn-save,
+    .modal-footer .btn-cancel { flex: 1; padding: 0.8rem; }
+    .form-row { grid-template-columns: 1fr; gap: 0.75rem; }
 
-    .modal-body { padding: 1rem; gap: 1rem; }
-    .modal-header { padding: 1rem; }
-    .modal-footer { padding: 1rem; }
+    /* Type toggle full width on mobile */
+    .type-toggle { width: 100%; }
+    .type-btn { flex: 1; padding: 0.65rem 0.5rem; font-size: 0.6rem; }
 
-    .form-row { grid-template-columns: 1fr; gap: 0.8rem; }
-
-    /* Detail panel full screen on mobile */
+    /* Detail panel — slide up from bottom */
     .detail-panel {
       width: 100%;
       border-left: none;
       border-top: 1px solid var(--border);
     }
-
     .detail-overlay { align-items: flex-end; }
-
     .detail-overlay .detail-panel {
       transform: translateY(100%);
-      max-height: 92vh;
+      max-height: 90vh;
     }
-
-    .detail-overlay.open .detail-panel {
-      transform: translateY(0);
-    }
-
+    .detail-overlay.open .detail-panel { transform: translateY(0); }
     .detail-img, .detail-img-placeholder { aspect-ratio: 16/9; }
-    .detail-body { padding: 1.2rem; }
-    .detail-actions { padding: 1rem; }
-    .detail-name { font-size: 1.5rem; }
+    .detail-body { padding: 1rem; }
+    .detail-actions {
+      padding: 0.9rem 1rem;
+      gap: 0.5rem;
+      flex-wrap: wrap;
+    }
+    .detail-actions button { flex: 1; min-width: 120px; padding: 0.75rem; }
+    .detail-name { font-size: 1.4rem; }
 
-    /* List view simplified on mobile */
-    .list-view .card {
-      grid-template-columns: 64px 1fr auto;
-    }
+    /* Qty stepper larger touch targets */
+    .qty-btn { width: 44px; height: 44px; font-size: 1.3rem; }
+    #stock-qty { font-size: 1.3rem !important; height: 44px; }
+
+    /* List view */
+    .list-view .card { grid-template-columns: 64px 1fr auto; }
     .list-view .card-img,
-    .list-view .card-img-placeholder {
-      width: 64px;
-      height: 64px;
-    }
+    .list-view .card-img-placeholder { width: 64px; height: 64px; }
+
+    /* Admin button larger tap target */
+    .admin-btn { width: 42px; height: 42px; }
+    .btn-add { padding: 0.6rem 1rem; font-size: 0.6rem; clip-path: none; }
   }
 
   @media (max-width: 380px) {
     .grid { grid-template-columns: 1fr 1fr; }
-    .header-stats .stat:first-child { display: none; }
+    .cat-tab { padding: 0.7rem 0.7rem; font-size: 0.55rem; }
   }
 </style>
 </head>
@@ -1318,8 +1334,51 @@ async function save() {
 
 const DEFAULT_PASSWORD = 'admin1234';
 
-function getPassword() {
+async function getPassword() {
+  if (window._firebaseReady) {
+    try {
+      const { getDoc } = await import('https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js');
+      const snap = await getDoc(window._docRef('__settings__'));
+      if (snap.exists() && snap.data().password) return snap.data().password;
+    } catch(e) {}
+  }
   return localStorage.getItem('horolog_pw') || DEFAULT_PASSWORD;
+}
+
+async function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  const correct = await getPassword();
+  if (pw === correct) {
+    isAdmin = true;
+    closeLogin();
+    applyAdminUI();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+  }
+}
+
+async function doChangePw() {
+  const current = document.getElementById('pw-current').value;
+  const newPw = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const err = document.getElementById('pw-err');
+
+  const correct = await getPassword();
+  if (current !== correct) { err.textContent = 'Huidig wachtwoord is onjuist.'; err.style.display = 'block'; return; }
+  if (newPw.length < 4) { err.textContent = 'Nieuw wachtwoord moet minimaal 4 tekens bevatten.'; err.style.display = 'block'; return; }
+  if (newPw !== confirm) { err.textContent = 'Wachtwoorden komen niet overeen.'; err.style.display = 'block'; return; }
+
+  // Save to localStorage AND Firestore
+  localStorage.setItem('horolog_pw', newPw);
+  if (window._firebaseReady) {
+    try {
+      await window._setDoc(window._docRef('__settings__'), { password: newPw });
+    } catch(e) { console.error('Wachtwoord sync mislukt:', e); }
+  }
+  closeChangePw();
+  alert('Wachtwoord succesvol gewijzigd op alle apparaten.');
 }
 
 function applyAdminUI() {
@@ -1355,19 +1414,6 @@ function closeLogin() {
   document.getElementById('login-overlay').classList.remove('open');
 }
 
-function doLogin() {
-  const pw = document.getElementById('login-pw').value;
-  if (pw === getPassword()) {
-    isAdmin = true;
-    closeLogin();
-    applyAdminUI();
-  } else {
-    document.getElementById('login-err').style.display = 'block';
-    document.getElementById('login-pw').value = '';
-    document.getElementById('login-pw').focus();
-  }
-}
-
 function openChangePw() {
   document.getElementById('pw-current').value = '';
   document.getElementById('pw-new').value = '';
@@ -1378,21 +1424,6 @@ function openChangePw() {
 
 function closeChangePw() {
   document.getElementById('changepw-overlay').classList.remove('open');
-}
-
-function doChangePw() {
-  const current = document.getElementById('pw-current').value;
-  const newPw = document.getElementById('pw-new').value;
-  const confirm = document.getElementById('pw-confirm').value;
-  const err = document.getElementById('pw-err');
-
-  if (current !== getPassword()) { err.textContent = 'Huidig wachtwoord is onjuist.'; err.style.display = 'block'; return; }
-  if (newPw.length < 4) { err.textContent = 'Nieuw wachtwoord moet minimaal 4 tekens bevatten.'; err.style.display = 'block'; return; }
-  if (newPw !== confirm) { err.textContent = 'Wachtwoorden komen niet overeen.'; err.style.display = 'block'; return; }
-
-  localStorage.setItem('horolog_pw', newPw);
-  closeChangePw();
-  alert('Wachtwoord succesvol gewijzigd.');
 }
 
 function genId() {
