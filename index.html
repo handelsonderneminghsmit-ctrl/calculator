@@ -1,0 +1,1361 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOROLOG — Watch Inventory</title>
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=Libre+Barcode+128+Text&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0a0a;
+    --surface: #111111;
+    --card: #161616;
+    --border: #2a2a2a;
+    --gold: #c9a84c;
+    --gold-dim: #7a6230;
+    --text: #e8e4dc;
+    --text-muted: #6b6560;
+    --red: #c0392b;
+    --green: #2ecc71;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grain overlay */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 999;
+    opacity: 0.4;
+  }
+
+  /* HEADER */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 0 3rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 72px;
+    position: sticky;
+    top: 0;
+    background: rgba(10,10,10,0.95);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+
+  .logo {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.8rem;
+    font-weight: 300;
+    letter-spacing: 0.5rem;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .logo span {
+    font-style: italic;
+    font-weight: 300;
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    letter-spacing: 0.15rem;
+    display: block;
+    margin-top: -4px;
+  }
+
+  .header-stats {
+    display: flex;
+    gap: 2rem;
+    align-items: center;
+  }
+
+  .stat {
+    text-align: right;
+  }
+
+  .stat-num {
+    font-size: 1.2rem;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  .stat-label {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    letter-spacing: 0.15rem;
+    text-transform: uppercase;
+  }
+
+  .btn-add {
+    background: var(--gold);
+    color: #0a0a0a;
+    border: none;
+    padding: 0.6rem 1.4rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+    clip-path: polygon(8px 0%, 100% 0%, calc(100% - 8px) 100%, 0% 100%);
+  }
+
+  .btn-add:hover {
+    background: #e0b85c;
+    transform: translateY(-1px);
+  }
+
+  /* TOOLBAR */
+  .toolbar {
+    padding: 1.5rem 3rem;
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+  }
+
+  .search-wrap {
+    position: relative;
+    flex: 1;
+    min-width: 200px;
+  }
+
+  .search-wrap::before {
+    content: '⌕';
+    position: absolute;
+    left: 0.8rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    font-size: 1.1rem;
+  }
+
+  input[type=text], input[type=number], input[type=url], select, textarea {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: 'Space Mono', monospace;
+    font-size: 0.75rem;
+    padding: 0.6rem 0.8rem;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  input[type=text]:focus, input[type=number]:focus, input[type=url]:focus, select:focus, textarea:focus {
+    border-color: var(--gold);
+  }
+
+  .search-input {
+    width: 100%;
+    padding-left: 2.2rem;
+  }
+
+  select {
+    cursor: pointer;
+    appearance: none;
+    padding-right: 2rem;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%236b6560'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 0.6rem center;
+  }
+
+  .view-toggle {
+    display: flex;
+    border: 1px solid var(--border);
+  }
+
+  .view-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.5rem 0.8rem;
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+
+  .view-btn.active {
+    background: var(--surface);
+    color: var(--gold);
+  }
+
+  /* GRID */
+  .main {
+    padding: 2rem 3rem;
+  }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 1.5px;
+  }
+
+  .list-view .grid {
+    grid-template-columns: 1fr;
+    gap: 1px;
+  }
+
+  /* CARD */
+  .card {
+    background: var(--card);
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(16px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:hover {
+    z-index: 2;
+    transform: scale(1.01);
+  }
+
+  .card::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid transparent;
+    transition: border-color 0.2s;
+    pointer-events: none;
+  }
+
+  .card:hover::after {
+    border-color: var(--gold-dim);
+  }
+
+  .card-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+    background: #1a1a1a;
+  }
+
+  .card-img-placeholder {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    font-size: 3rem;
+  }
+
+  .list-view .card {
+    display: grid;
+    grid-template-columns: 80px 1fr auto;
+    align-items: center;
+  }
+
+  .list-view .card-img,
+  .list-view .card-img-placeholder {
+    width: 80px;
+    height: 80px;
+    aspect-ratio: unset;
+  }
+
+  .card-body {
+    padding: 1rem;
+  }
+
+  .card-ref {
+    font-size: 0.55rem;
+    color: var(--text-muted);
+    letter-spacing: 0.2rem;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .card-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.1rem;
+    font-weight: 400;
+    line-height: 1.2;
+    margin-bottom: 0.2rem;
+  }
+
+  .card-model {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    margin-bottom: 0.7rem;
+    font-style: italic;
+    font-family: 'Cormorant Garamond', serif;
+  }
+
+  .card-meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    gap: 0.5rem;
+  }
+
+  .card-price {
+    font-size: 0.85rem;
+    color: var(--gold);
+    font-weight: 700;
+  }
+
+  .badge {
+    font-size: 0.55rem;
+    letter-spacing: 0.1rem;
+    padding: 0.2rem 0.5rem;
+    text-transform: uppercase;
+    font-weight: 700;
+  }
+
+  .badge-in { background: rgba(46,204,113,0.15); color: var(--green); border: 1px solid rgba(46,204,113,0.3); }
+  .badge-low { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
+  .badge-out { background: rgba(192,57,43,0.15); color: var(--red); border: 1px solid rgba(192,57,43,0.3); }
+
+  .card-actions {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    display: flex;
+    gap: 0.3rem;
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+
+  .card:hover .card-actions {
+    opacity: 1;
+  }
+
+  .list-view .card-actions {
+    position: static;
+    opacity: 1;
+    padding: 0 1rem;
+    flex-direction: row;
+  }
+
+  .icon-btn {
+    background: rgba(10,10,10,0.85);
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: all 0.2s;
+  }
+
+  .icon-btn:hover { color: var(--gold); border-color: var(--gold); }
+  .icon-btn.del:hover { color: var(--red); border-color: var(--red); }
+
+  /* EMPTY */
+  .empty {
+    grid-column: 1/-1;
+    text-align: center;
+    padding: 6rem 2rem;
+    color: var(--text-muted);
+  }
+
+  .empty-icon { font-size: 4rem; margin-bottom: 1rem; opacity: 0.3; }
+  .empty h3 { font-family: 'Cormorant Garamond', serif; font-size: 1.5rem; font-weight: 300; margin-bottom: 0.5rem; color: var(--text); }
+  .empty p { font-size: 0.7rem; letter-spacing: 0.1rem; }
+
+  /* MODAL */
+  .overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.85);
+    z-index: 200;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+    backdrop-filter: blur(4px);
+  }
+
+  .overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    width: 560px;
+    max-width: calc(100vw - 2rem);
+    max-height: 90vh;
+    overflow-y: auto;
+    transform: translateY(20px);
+    transition: transform 0.3s;
+  }
+
+  .overlay.open .modal {
+    transform: translateY(0);
+  }
+
+  .modal-header {
+    padding: 1.5rem 2rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .modal-title {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 1.4rem;
+    font-weight: 300;
+    letter-spacing: 0.15rem;
+    color: var(--gold);
+    text-transform: uppercase;
+  }
+
+  .modal-close {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.2rem;
+    cursor: pointer;
+    transition: color 0.2s;
+    font-family: 'Space Mono', monospace;
+  }
+
+  .modal-close:hover { color: var(--text); }
+
+  .modal-body {
+    padding: 2rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.2rem;
+  }
+
+  .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.4rem;
+  }
+
+  .form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+  }
+
+  label {
+    font-size: 0.6rem;
+    letter-spacing: 0.15rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+  }
+
+  input[type=text], input[type=number], input[type=url], select, textarea {
+    width: 100%;
+  }
+
+  textarea {
+    resize: vertical;
+    min-height: 80px;
+  }
+
+  .img-upload-area {
+    border: 1px dashed var(--border);
+    padding: 2rem;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+
+  .img-upload-area:hover {
+    border-color: var(--gold);
+    background: rgba(201,168,76,0.03);
+  }
+
+  .img-upload-area input[type=file] {
+    position: absolute;
+    inset: 0;
+    opacity: 0;
+    cursor: pointer;
+    width: 100%;
+    height: 100%;
+  }
+
+  .upload-preview {
+    width: 100%;
+    max-height: 200px;
+    object-fit: contain;
+    margin-bottom: 0.5rem;
+    display: none;
+  }
+
+  .upload-text {
+    font-size: 0.65rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1rem;
+  }
+
+  .url-divider {
+    text-align: center;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    letter-spacing: 0.15rem;
+    text-transform: uppercase;
+    position: relative;
+  }
+
+  .url-divider::before, .url-divider::after {
+    content: '';
+    position: absolute;
+    top: 50%;
+    width: 42%;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .url-divider::before { left: 0; }
+  .url-divider::after { right: 0; }
+
+  .modal-footer {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+  }
+
+  .btn-cancel {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    padding: 0.6rem 1.4rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1rem;
+    cursor: pointer;
+    text-transform: uppercase;
+    transition: all 0.2s;
+  }
+
+  .btn-cancel:hover { border-color: var(--text-muted); color: var(--text); }
+
+  .btn-save {
+    background: var(--gold);
+    color: #0a0a0a;
+    border: none;
+    padding: 0.6rem 1.8rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.1rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    font-weight: 700;
+    transition: all 0.2s;
+  }
+
+  .btn-save:hover { background: #e0b85c; }
+
+  /* DETAIL PANEL */
+  .detail-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 300;
+    display: flex;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+
+  .detail-overlay.open {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .detail-panel {
+    background: var(--surface);
+    width: 480px;
+    max-width: 100vw;
+    margin-left: auto;
+    border-left: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1);
+    overflow-y: auto;
+  }
+
+  .detail-overlay.open .detail-panel {
+    transform: translateX(0);
+  }
+
+  .detail-img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+    background: #1a1a1a;
+  }
+
+  .detail-img-placeholder {
+    width: 100%;
+    aspect-ratio: 1;
+    background: #1a1a1a;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--border);
+    font-size: 5rem;
+  }
+
+  .detail-body {
+    padding: 2rem;
+    flex: 1;
+  }
+
+  .detail-ref {
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    letter-spacing: 0.25rem;
+    text-transform: uppercase;
+    margin-bottom: 0.4rem;
+  }
+
+  .detail-name {
+    font-family: 'Cormorant Garamond', serif;
+    font-size: 2rem;
+    font-weight: 300;
+    line-height: 1.1;
+    margin-bottom: 0.3rem;
+  }
+
+  .detail-model {
+    font-family: 'Cormorant Garamond', serif;
+    font-style: italic;
+    color: var(--text-muted);
+    margin-bottom: 1.5rem;
+  }
+
+  .detail-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1.2rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .detail-field label {
+    display: block;
+    margin-bottom: 0.3rem;
+  }
+
+  .detail-field-val {
+    font-size: 0.85rem;
+  }
+
+  .detail-desc {
+    font-size: 0.75rem;
+    line-height: 1.7;
+    color: var(--text-muted);
+    border-top: 1px solid var(--border);
+    padding-top: 1.2rem;
+  }
+
+  .detail-actions {
+    padding: 1.5rem 2rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 1rem;
+  }
+
+  .detail-close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: rgba(10,10,10,0.8);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    z-index: 1;
+  }
+
+  .detail-close-btn:hover { border-color: var(--gold); color: var(--gold); }
+
+  .detail-panel { position: relative; }
+
+  /* SORT INDICATOR */
+  .section-meta {
+    padding: 0.8rem 3rem;
+    font-size: 0.6rem;
+    color: var(--text-muted);
+    letter-spacing: 0.1rem;
+    text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+  }
+
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); }
+  ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
+
+  .type-toggle {
+    display: flex;
+    gap: 0;
+    border: 1px solid var(--border);
+    width: fit-content;
+  }
+
+  .type-btn {
+    background: none;
+    border: none;
+    color: var(--text-muted);
+    padding: 0.55rem 1.2rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.7rem;
+    letter-spacing: 0.08rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    touch-action: manipulation;
+  }
+
+  .type-btn + .type-btn {
+    border-left: 1px solid var(--border);
+  }
+
+  .type-btn.active {
+    background: var(--gold);
+    color: #0a0a0a;
+    font-weight: 700;
+  }
+
+  .btn-add, .btn-save, .btn-cancel, .icon-btn, .view-btn, .modal-close, .detail-close-btn {
+    touch-action: manipulation;
+  }
+
+  /* ── MOBILE ── */
+  @media (max-width: 600px) {
+    /* Prevent iOS input zoom */
+    input[type=text], input[type=number], input[type=url], select, textarea {
+      font-size: 16px;
+    }
+
+    header {
+      padding: 0 1rem;
+      height: auto;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      padding-top: 0.8rem;
+      padding-bottom: 0.8rem;
+    }
+
+    .logo { font-size: 1.3rem; letter-spacing: 0.3rem; }
+    .logo span { display: none; }
+
+    .header-stats { gap: 1rem; }
+    .stat-num { font-size: 1rem; }
+
+    .btn-add {
+      padding: 0.5rem 1rem;
+      font-size: 0.65rem;
+      clip-path: none;
+    }
+
+    .toolbar {
+      padding: 0.8rem 1rem;
+      gap: 0.6rem;
+    }
+
+    .toolbar select { flex: 1; min-width: 0; }
+
+    .section-meta { padding: 0.6rem 1rem; }
+
+    .main { padding: 1rem; }
+
+    .grid {
+      grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+      gap: 1px;
+    }
+
+    /* Always show card action buttons on touch */
+    .card-actions {
+      opacity: 1;
+      background: linear-gradient(transparent, rgba(0,0,0,0.6));
+      padding: 0.4rem;
+    }
+
+    .icon-btn { width: 34px; height: 34px; font-size: 0.9rem; }
+
+    /* Modal full screen on mobile */
+    .overlay { align-items: flex-end; }
+
+    .modal {
+      width: 100%;
+      max-width: 100%;
+      max-height: 92vh;
+      border-bottom: none;
+      border-radius: 0;
+    }
+
+    .modal-body { padding: 1rem; gap: 1rem; }
+    .modal-header { padding: 1rem; }
+    .modal-footer { padding: 1rem; }
+
+    .form-row { grid-template-columns: 1fr; gap: 0.8rem; }
+
+    /* Detail panel full screen on mobile */
+    .detail-panel {
+      width: 100%;
+      border-left: none;
+      border-top: 1px solid var(--border);
+    }
+
+    .detail-overlay { align-items: flex-end; }
+
+    .detail-overlay .detail-panel {
+      transform: translateY(100%);
+      max-height: 92vh;
+    }
+
+    .detail-overlay.open .detail-panel {
+      transform: translateY(0);
+    }
+
+    .detail-img, .detail-img-placeholder { aspect-ratio: 16/9; }
+    .detail-body { padding: 1.2rem; }
+    .detail-actions { padding: 1rem; }
+    .detail-name { font-size: 1.5rem; }
+
+    /* List view simplified on mobile */
+    .list-view .card {
+      grid-template-columns: 64px 1fr auto;
+    }
+    .list-view .card-img,
+    .list-view .card-img-placeholder {
+      width: 64px;
+      height: 64px;
+    }
+  }
+
+  @media (max-width: 380px) {
+    .grid { grid-template-columns: 1fr 1fr; }
+    .header-stats .stat:first-child { display: none; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    Horolog
+    <span>Private Watch Registry</span>
+  </div>
+  <div class="header-stats">
+    <div class="stat">
+      <div class="stat-num" id="total-count">0</div>
+      <div class="stat-label">Items</div>
+    </div>
+    <button class="btn-add" onclick="openModal()">+ Add Item</button>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="search-wrap">
+    <input type="text" class="search-input" placeholder="Search brand, reference..." oninput="renderGrid()" id="search-input">
+  </div>
+  <select onchange="renderGrid()" id="filter-brand">
+    <option value="">All Brands</option>
+  </select>
+  <select onchange="renderGrid()" id="filter-status">
+    <option value="">All Status</option>
+    <option value="In Stock">In Stock</option>
+    <option value="Low Stock">Low Stock</option>
+    <option value="Out of Stock">Out of Stock</option>
+  </select>
+  <select onchange="renderGrid()" id="sort-by">
+    <option value="added">Newest First</option>
+    <option value="name">Brand A–Z</option>
+    <option value="qty">Quantity</option>
+  </select>
+  <div class="view-toggle">
+    <button class="view-btn active" onclick="setView('grid', this)" title="Grid">⊞</button>
+    <button class="view-btn" onclick="setView('list', this)" title="List">≡</button>
+  </div>
+</div>
+
+<div class="section-meta" id="section-meta">0 watches</div>
+
+<div class="main" id="main-container">
+  <div class="grid" id="grid"></div>
+</div>
+
+<!-- ADD/EDIT MODAL -->
+<div class="overlay" id="modal-overlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title" id="modal-title">New Item</div>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>Watch Image</label>
+        <div class="img-upload-area" id="upload-area">
+          <input type="file" accept="image/*" onchange="handleFileUpload(event)">
+          <img class="upload-preview" id="upload-preview">
+          <div class="upload-text" id="upload-text">📷 Click or drag to upload image</div>
+        </div>
+        <div class="url-divider" style="margin:0.5rem 0">or</div>
+        <input type="url" id="img-url" placeholder="Paste image URL..." oninput="handleUrlInput()">
+      </div>
+      <!-- TYPE TOGGLE -->
+      <div class="form-group">
+        <label>Type *</label>
+        <div class="type-toggle">
+          <button type="button" class="type-btn active" id="type-watch" onclick="setType('Watch')">⌚ Watch</button>
+          <button type="button" class="type-btn" id="type-box" onclick="setType('Watch Box')">□ Watch Box</button>
+        </div>
+        <input type="hidden" id="f-type" value="Watch">
+      </div>
+
+      <!-- WATCH FIELDS -->
+      <div id="watch-fields">
+        <div class="form-group">
+          <label>Brand *</label>
+          <select id="f-brand" onchange="updateModels()">
+            <option value="">— Select brand —</option>
+            <option>Rolex</option>
+            <option>Patek Philippe</option>
+            <option>Audemars Piguet</option>
+            <option>Vacheron Constantin</option>
+            <option>A. Lange & Söhne</option>
+            <option>Jaeger-LeCoultre</option>
+            <option>IWC</option>
+            <option>Omega</option>
+            <option>Breitling</option>
+            <option>TAG Heuer</option>
+            <option>Grand Seiko</option>
+            <option>Tudor</option>
+            <option>Cartier</option>
+            <option>Panerai</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Model *</label>
+          <select id="f-model">
+            <option value="">— Select brand first —</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- BOX FIELDS -->
+      <div id="box-fields" style="display:none">
+        <div class="form-group">
+          <label>Box Brand *</label>
+          <select id="f-box-brand" onchange="updateBoxModels()">
+            <option value="">— Select brand —</option>
+            <option>Rolex</option>
+            <option>Patek Philippe</option>
+            <option>Audemars Piguet</option>
+            <option>Vacheron Constantin</option>
+            <option>A. Lange & Söhne</option>
+            <option>Jaeger-LeCoultre</option>
+            <option>IWC</option>
+            <option>Omega</option>
+            <option>Breitling</option>
+            <option>TAG Heuer</option>
+            <option>Grand Seiko</option>
+            <option>Tudor</option>
+            <option>Cartier</option>
+            <option>Panerai</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Model *</label>
+          <select id="f-box-model">
+            <option value="">— Select brand first —</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Reference</label>
+          <input type="text" id="f-ref" placeholder="e.g. 126610LN">
+        </div>
+        <div class="form-group">
+          <label>Case Size (mm)</label>
+          <input type="number" id="f-size" placeholder="e.g. 40">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="f-status">
+          <option value="In Stock">In Stock</option>
+          <option value="Low Stock">Low Stock</option>
+          <option value="Out of Stock">Out of Stock</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>Quantity</label>
+        <input type="number" id="f-qty" value="1" min="0">
+      </div>
+      <div class="form-group">
+        <label>Notes</label>
+        <textarea id="f-notes" placeholder="Notes..."></textarea>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
+      <button class="btn-save" onclick="saveWatch()">Save Watch</button>
+    </div>
+  </div>
+</div>
+
+<!-- DETAIL PANEL -->
+<div class="detail-overlay" id="detail-overlay" onclick="handleDetailOverlayClick(event)">
+  <div class="detail-panel" id="detail-panel">
+    <button class="detail-close-btn" onclick="closeDetail()">✕</button>
+    <div id="detail-content"></div>
+  </div>
+</div>
+
+<script>
+let watches = JSON.parse(localStorage.getItem('horolog_watches') || '[]');
+let editingId = null;
+let currentImg = null;
+let currentView = 'grid';
+
+function save() {
+  localStorage.setItem('horolog_watches', JSON.stringify(watches));
+}
+
+function genId() {
+  return Date.now().toString(36) + Math.random().toString(36).slice(2);
+}
+
+const MODELS = {
+  'Rolex': ['Datejust', 'Day-Date', 'Submariner', 'GMT-Master II', 'Daytona', 'Explorer', 'Explorer II', 'Sea-Dweller', 'Yacht-Master', 'Air-King', 'Milgauss', 'Sky-Dweller', 'Cellini'],
+  'Patek Philippe': ['Nautilus', 'Aquanaut', 'Calatrava', 'Grand Complications', 'Gondolo', 'Golden Ellipse', 'Twenty~4', 'Complications'],
+  'Audemars Piguet': ['Royal Oak', 'Royal Oak Offshore', 'Royal Oak Concept', 'Code 11.59', 'Millenary', 'Jules Audemars'],
+  'Vacheron Constantin': ['Overseas', 'Patrimony', 'Traditionnelle', 'Historiques', 'Égérie', 'Harmony', 'Métiers d\'Art'],
+  'A. Lange & Söhne': ['Lange 1', 'Saxonia', 'Datograph', 'Richard Lange', 'Zeitwerk', '1815', 'Odysseus'],
+  'Jaeger-LeCoultre': ['Reverso', 'Master Control', 'Polaris', 'Rendez-Vous', 'Atmos', 'Duomètre'],
+  'IWC': ['Portugieser', 'Pilot\'s Watch', 'Portofino', 'Aquatimer', 'Da Vinci', 'Ingenieur'],
+  'Omega': ['Seamaster', 'Speedmaster', 'Constellation', 'De Ville', 'Aqua Terra', 'Planet Ocean', 'Railmaster'],
+  'Breitling': ['Navitimer', 'Superocean', 'Chronomat', 'Avenger', 'Premier', 'Transocean', 'Endurance Pro'],
+  'TAG Heuer': ['Carrera', 'Monaco', 'Aquaracer', 'Formula 1', 'Link', 'Autavia'],
+  'Grand Seiko': ['Snowflake', 'Spring Drive', 'Elegance', 'Sport', 'Evolution 9', 'Heritage'],
+  'Tudor': ['Black Bay', 'Pelagos', 'Royal', 'Glamour', 'Ranger', 'Advisor', '1926'],
+  'Cartier': ['Santos', 'Tank', 'Ballon Bleu', 'Panthère', 'Pasha', 'Roadster', 'Ronde'],
+  'Panerai': ['Luminor', 'Radiomir', 'Submersible', 'Luminor Due', 'Luminor Marina', 'Luminor Base'],
+};
+
+function updateModels(selectedModel) {
+  const brand = document.getElementById('f-brand').value;
+  const sel = document.getElementById('f-model');
+  const models = MODELS[brand] || [];
+  sel.innerHTML = models.length
+    ? '<option value="">— Select model —</option>' + models.map(m => `<option${m===selectedModel?' selected':''}>${m}</option>`).join('')
+    : '<option value="">— Select brand first —</option>';
+}
+
+function updateBoxModels(selectedModel) {
+  const brand = document.getElementById('f-box-brand').value;
+  const sel = document.getElementById('f-box-model');
+  const models = MODELS[brand] || [];
+  sel.innerHTML = models.length
+    ? '<option value="">— Select model —</option>' + models.map(m => `<option${m===selectedModel?' selected':''}>${m}</option>`).join('')
+    : '<option value="">— Select brand first —</option>';
+}
+
+function getBadge(status) {
+  if (status === 'In Stock') return '<span class="badge badge-in">In Stock</span>';
+  if (status === 'Low Stock') return '<span class="badge badge-low">Low Stock</span>';
+  return '<span class="badge badge-out">Out of Stock</span>';
+}
+
+function setType(type) {
+  document.getElementById('f-type').value = type;
+  document.getElementById('type-watch').classList.toggle('active', type === 'Watch');
+  document.getElementById('type-box').classList.toggle('active', type === 'Watch Box');
+  document.getElementById('watch-fields').style.display = type === 'Watch' ? '' : 'none';
+  document.getElementById('box-fields').style.display = type === 'Watch Box' ? '' : 'none';
+}
+
+
+  if (!n) return '—';
+  return '€' + Number(n).toLocaleString('de-DE');
+}
+
+function getFiltered() {
+  const q = document.getElementById('search-input').value.toLowerCase();
+  const brand = document.getElementById('filter-brand').value;
+  const status = document.getElementById('filter-status').value;
+  const sort = document.getElementById('sort-by').value;
+
+  let list = watches.filter(w => {
+    const match = !q || [w.brand,w.model,w.ref,w.serial,w.notes].join(' ').toLowerCase().includes(q);
+    const brandMatch = !brand || w.brand === brand;
+    const statusMatch = !status || w.status === status;
+    return match && brandMatch && statusMatch;
+  });
+
+  if (sort === 'name') list.sort((a,b) => (a.brand).localeCompare(b.brand));
+  else if (sort === 'qty') list.sort((a,b) => (b.qty||0)-(a.qty||0));
+  else list.sort((a,b) => b.added - a.added);
+
+  return list;
+}
+
+function renderGrid() {
+  const list = getFiltered();
+  const grid = document.getElementById('grid');
+  document.getElementById('section-meta').textContent = `${list.length} item${list.length!==1?'s':''} shown`;
+
+  // Update header stats
+  const totalQty = watches.reduce((s,w) => s+(parseInt(w.qty)||0), 0);
+  document.getElementById('total-count').textContent = totalQty;
+
+  // Update brand filter — show watch brands + "Boxes" if any box items exist
+  const watchBrands = [...new Set(watches.filter(w=>w.type!=='Watch Box').map(w=>w.brand).filter(Boolean))].sort();
+  const hasBoxes = watches.some(w=>w.type==='Watch Box');
+  const fb = document.getElementById('filter-brand');
+  const curBrand = fb.value;
+  fb.innerHTML = '<option value="">All Brands</option>'
+    + (hasBoxes ? `<option ${curBrand==='Boxes'?'selected':''}>Boxes</option>` : '')
+    + watchBrands.map(b=>`<option ${b===curBrand?'selected':''}>${b}</option>`).join('');
+
+  if (!list.length) {
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">⌚</div><h3>No items found</h3><p>Add your first item or adjust filters</p></div>`;
+    return;
+  }
+
+  grid.innerHTML = list.map((w, i) => {
+    const isBox = w.type === 'Watch Box';
+    const imgHtml = w.img
+      ? `<img class="card-img" src="${w.img}" alt="${w.brand}" loading="lazy">`
+      : `<div class="card-img-placeholder">${isBox ? '□' : '⌚'}</div>`;
+    const displayName = isBox ? `Boxes · ${w.boxBrand||''}` : (w.brand||'Unknown');
+    const displayModel = isBox ? (w.boxModel||'') : (w.model||'');
+    return `
+    <div class="card" style="animation-delay:${i*0.04}s" onclick="openDetail('${w.id}')">
+      ${imgHtml}
+      <div class="card-body">
+        <div class="card-ref">${isBox ? '<span style="font-size:0.55rem;letter-spacing:0.15rem;color:var(--gold-dim);text-transform:uppercase">Watch Box</span>' : (w.ref||'')}</div>
+        <div class="card-name">${displayName}</div>
+        <div class="card-model">${displayModel}</div>
+        <div class="card-meta">
+          ${getBadge(w.status||'In Stock')}
+        </div>
+      </div>
+      <div class="card-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" onclick="openModal('${w.id}')" title="Edit">✎</button>
+        <button class="icon-btn del" onclick="deleteWatch('${w.id}')" title="Delete">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function openDetail(id) {
+  const w = watches.find(x=>x.id===id);
+  if (!w) return;
+  const isBox = w.type === 'Watch Box';
+  const imgHtml = w.img
+    ? `<img class="detail-img" src="${w.img}" alt="${w.brand}">`
+    : `<div class="detail-img-placeholder">${isBox ? '□' : '⌚'}</div>`;
+
+  document.getElementById('detail-content').innerHTML = `
+    ${imgHtml}
+    <div class="detail-body">
+      <div class="detail-ref">${isBox ? 'Watch Box' : (w.ref||'')}</div>
+      <div class="detail-name">${isBox ? `Boxes · ${w.boxBrand||''}` : (w.brand||'Unknown')}</div>
+      <div class="detail-model">${isBox ? (w.boxModel||'') : (w.model||'')}</div>
+      <div class="detail-grid">
+        <div class="detail-field"><label>Status</label><div class="detail-field-val">${getBadge(w.status||'In Stock')}</div></div>
+        <div class="detail-field"><label>Quantity</label><div class="detail-field-val">${w.qty||1}</div></div>
+        ${!isBox && w.size ? `<div class="detail-field"><label>Case Size</label><div class="detail-field-val">${w.size}mm</div></div>` : ''}
+        ${!isBox && w.ref ? `<div class="detail-field"><label>Reference</label><div class="detail-field-val">${w.ref}</div></div>` : ''}
+      </div>
+      ${w.notes?`<div class="detail-desc">${w.notes}</div>`:''}
+    </div>
+    <div class="detail-actions">
+      <button class="btn-save" style="flex:1" onclick="closeDetail();openModal('${w.id}')">✎ Edit Item</button>
+      <button class="btn-cancel" onclick="closeDetail()">Close</button>
+    </div>
+  `;
+  document.getElementById('detail-overlay').classList.add('open');
+}
+
+function closeDetail() {
+  document.getElementById('detail-overlay').classList.remove('open');
+}
+
+function handleDetailOverlayClick(e) {
+  if (e.target === document.getElementById('detail-overlay')) closeDetail();
+}
+
+function openModal(id) {
+  editingId = id || null;
+  currentImg = null;
+  const modal = document.getElementById('modal-overlay');
+  document.getElementById('modal-title').textContent = id ? 'Edit Item' : 'New Item';
+
+  // reset
+  ['f-ref','f-size','f-qty','f-notes','img-url'].forEach(f => {
+    document.getElementById(f).value = '';
+  });
+  document.getElementById('f-qty').value = 1;
+  document.getElementById('f-status').value = 'In Stock';
+  document.getElementById('f-brand').value = '';
+  document.getElementById('f-model').innerHTML = '<option value="">— Select brand first —</option>';
+  document.getElementById('f-box-brand').value = '';
+  document.getElementById('f-box-model').innerHTML = '<option value="">— Select brand first —</option>';
+  setType('Watch');
+  document.getElementById('upload-preview').style.display = 'none';
+  document.getElementById('upload-text').style.display = 'block';
+
+  if (id) {
+    const w = watches.find(x=>x.id===id);
+    if (w) {
+      setType(w.type||'Watch');
+      document.getElementById('f-brand').value = w.brand||'';
+      updateModels(w.model||'');
+      document.getElementById('f-box-brand').value = w.boxBrand||'';
+      updateBoxModels(w.boxModel||'');
+      document.getElementById('f-ref').value = w.ref||'';
+      document.getElementById('f-size').value = w.size||'';
+      document.getElementById('f-qty').value = w.qty||1;
+      document.getElementById('f-notes').value = w.notes||'';
+      document.getElementById('f-status').value = w.status||'In Stock';
+      if (w.img) {
+        currentImg = w.img;
+        document.getElementById('upload-preview').src = w.img;
+        document.getElementById('upload-preview').style.display = 'block';
+        document.getElementById('upload-text').textContent = '✓ Image set';
+        document.getElementById('img-url').value = w.img.startsWith('data:') ? '' : w.img;
+      }
+    }
+  }
+
+  modal.classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modal-overlay').classList.remove('open');
+  editingId = null;
+}
+
+function handleOverlayClick(e) {
+  if (e.target === document.getElementById('modal-overlay')) closeModal();
+}
+
+function handleFileUpload(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = ev => {
+    currentImg = ev.target.result;
+    document.getElementById('upload-preview').src = currentImg;
+    document.getElementById('upload-preview').style.display = 'block';
+    document.getElementById('upload-text').textContent = '✓ ' + file.name;
+    document.getElementById('img-url').value = '';
+  };
+  reader.readAsDataURL(file);
+}
+
+function handleUrlInput() {
+  const url = document.getElementById('img-url').value.trim();
+  if (url) {
+    currentImg = url;
+    document.getElementById('upload-preview').src = url;
+    document.getElementById('upload-preview').style.display = 'block';
+    document.getElementById('upload-text').textContent = '✓ URL set';
+  }
+}
+
+function saveWatch() {
+  const type = document.getElementById('f-type').value;
+  const isBox = type === 'Watch Box';
+  const brand = isBox ? 'Boxes' : document.getElementById('f-brand').value;
+  const model = isBox ? '' : document.getElementById('f-model').value;
+  const boxBrand = isBox ? document.getElementById('f-box-brand').value : '';
+  const boxModel = isBox ? document.getElementById('f-box-model').value : '';
+
+  if (!isBox && !brand) { alert('Please select a brand.'); return; }
+  if (!isBox && !model) { alert('Please select a model.'); return; }
+  if (isBox && !boxBrand) { alert('Please select a box brand.'); return; }
+  if (isBox && !boxModel) { alert('Please select a box model.'); return; }
+
+  const urlImg = document.getElementById('img-url').value.trim();
+  const img = urlImg || currentImg || null;
+
+  const data = {
+    type, brand, model, boxBrand, boxModel,
+    ref: document.getElementById('f-ref').value.trim(),
+    size: document.getElementById('f-size').value,
+    status: document.getElementById('f-status').value,
+    qty: parseInt(document.getElementById('f-qty').value)||1,
+    notes: document.getElementById('f-notes').value.trim(),
+    img
+  };
+
+  if (editingId) {
+    const idx = watches.findIndex(w=>w.id===editingId);
+    if (idx !== -1) watches[idx] = { ...watches[idx], ...data };
+  } else {
+    watches.push({ id: genId(), added: Date.now(), ...data });
+  }
+
+  save();
+  closeModal();
+  renderGrid();
+}
+
+function deleteWatch(id) {
+  if (!confirm('Remove this item from inventory?')) return;
+  watches = watches.filter(w=>w.id!==id);
+  save();
+  renderGrid();
+}
+
+function setView(view, btn) {
+  currentView = view;
+  document.querySelectorAll('.view-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const container = document.getElementById('main-container');
+  if (view === 'list') container.classList.add('list-view');
+  else container.classList.remove('list-view');
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { closeModal(); closeDetail(); }
+  if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); document.getElementById('search-input').focus(); }
+});
+
+renderGrid();
+</script>
+</body>
+</html>
