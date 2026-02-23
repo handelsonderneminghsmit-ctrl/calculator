@@ -959,6 +959,9 @@
   <select onchange="renderGrid()" id="filter-brand">
     <option value="">Alle Merken</option>
   </select>
+  <select onchange="renderGrid()" id="filter-model" style="display:none">
+    <option value="">Alle Modellen</option>
+  </select>
   <select onchange="renderGrid()" id="filter-status">
     <option value="">Alle Status</option>
     <option value="In Stock">Op Voorraad</option>
@@ -1388,6 +1391,9 @@ function setCategory(cat) {
   currentCategory = cat;
   document.getElementById('cat-watches').classList.toggle('active', cat === 'watches');
   document.getElementById('cat-sunglasses').classList.toggle('active', cat === 'sunglasses');
+  document.getElementById('filter-brand').value = '';
+  document.getElementById('filter-model').value = '';
+  document.getElementById('filter-model').style.display = 'none';
   renderGrid();
 }
 
@@ -1406,6 +1412,7 @@ function setType(type) {
 function getFiltered() {
   const q = document.getElementById('search-input').value.toLowerCase();
   const brand = document.getElementById('filter-brand').value;
+  const modelFilter = document.getElementById('filter-model').value;
   const status = document.getElementById('filter-status').value;
   const sort = document.getElementById('sort-by').value;
 
@@ -1416,8 +1423,9 @@ function getFiltered() {
     const searchModel = isSunglasses ? w.sgModel : w.model;
     const match = !q || [searchBrand, searchModel, w.ref, w.notes].join(' ').toLowerCase().includes(q);
     const brandMatch = !brand || searchBrand === brand;
+    const modelMatch = !modelFilter || searchModel === modelFilter;
     const statusMatch = !status || w.status === status;
-    return categoryMatch && match && brandMatch && statusMatch;
+    return categoryMatch && match && brandMatch && modelMatch && statusMatch;
   });
 
   if (sort === 'name') list.sort((a,b) => (a.brand).localeCompare(b.brand));
@@ -1450,6 +1458,19 @@ function renderGrid() {
     fb.innerHTML = '<option value="">Alle Merken</option>'
       + (hasBoxes ? `<option ${curBrand==='Boxes'?'selected':''}>Boxes</option>` : '')
       + watchBrands.map(b=>`<option ${b===curBrand?'selected':''}>${b}</option>`).join('');
+  }
+
+  // Show model filter for watches when a brand is selected
+  const fm = document.getElementById('filter-model');
+  const curModel = fm.value;
+  if (!isSunCat && curBrand && curBrand !== 'Boxes') {
+    const availableModels = [...new Set(watches.filter(w=>w.brand===curBrand&&w.type!=='Watch Box'&&w.type!=='Sunglasses').map(w=>w.model).filter(Boolean))].sort();
+    fm.innerHTML = '<option value="">Alle Modellen</option>' + availableModels.map(m=>`<option ${m===curModel?'selected':''}>${m}</option>`).join('');
+    fm.style.display = '';
+  } else {
+    fm.innerHTML = '<option value="">Alle Modellen</option>';
+    fm.style.display = 'none';
+    fm.value = '';
   }
 
   if (!list.length) {
