@@ -323,7 +323,6 @@
   }
 
   .badge-in { background: rgba(46,204,113,0.15); color: var(--green); border: 1px solid rgba(46,204,113,0.3); }
-  .badge-low { background: rgba(201,168,76,0.15); color: var(--gold); border: 1px solid rgba(201,168,76,0.3); }
   .badge-out { background: rgba(192,57,43,0.15); color: var(--red); border: 1px solid rgba(192,57,43,0.3); }
 
   .card-actions {
@@ -722,6 +721,71 @@
   ::-webkit-scrollbar-thumb { background: var(--border); }
   ::-webkit-scrollbar-thumb:hover { background: var(--gold-dim); }
 
+  .category-tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    padding: 0 1.5rem;
+    background: var(--surface);
+    gap: 0;
+  }
+
+  .cat-tab {
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--text-muted);
+    padding: 0.9rem 1.4rem;
+    font-family: 'Space Mono', monospace;
+    font-size: 0.65rem;
+    letter-spacing: 0.12rem;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-bottom: -1px;
+    touch-action: manipulation;
+  }
+
+  .cat-tab.active {
+    color: var(--gold);
+    border-bottom-color: var(--gold);
+  }
+
+  .cat-tab:hover:not(.active) { color: var(--text); }
+
+  .admin-btn {
+    background: none;
+    border: 1px solid var(--border);
+    color: var(--text-muted);
+    width: 36px;
+    height: 36px;
+    cursor: pointer;
+    font-size: 0.95rem;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    touch-action: manipulation;
+  }
+  .admin-btn:hover { border-color: var(--gold); }
+  .admin-btn.unlocked { border-color: var(--gold); background: rgba(201,168,76,0.1); }
+
+  .qty-btn {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    touch-action: manipulation;
+    font-family: 'Space Mono', monospace;
+  }
+  .qty-btn:hover { border-color: var(--gold); color: var(--gold); }
+
   .type-toggle {
     display: flex;
     gap: 0;
@@ -870,35 +934,40 @@
 
 <header>
   <div class="logo">
-    Horolog
-    <span>Private Watch Registry</span>
+    Empire Watches
+    <span>Privé Horloge Register</span>
   </div>
   <div class="header-stats">
     <div class="stat">
       <div class="stat-num" id="total-count">0</div>
-      <div class="stat-label">Items</div>
+      <div class="stat-label">Artikelen</div>
     </div>
-    <button class="btn-add" onclick="openModal()">+ Add Item</button>
+    <button class="btn-add" id="btn-add-item" onclick="openModal()" style="display:none">+ Toevoegen</button>
+    <button class="admin-btn" id="admin-btn" onclick="handleAdminBtn()" title="Admin">🔒</button>
   </div>
 </header>
 
+<div class="category-tabs">
+  <button class="cat-tab active" id="cat-watches" onclick="setCategory('watches')">⌚ Horloges</button>
+  <button class="cat-tab" id="cat-sunglasses" onclick="setCategory('sunglasses')">🕶 Zonnebrillen</button>
+</div>
+
 <div class="toolbar">
   <div class="search-wrap">
-    <input type="text" class="search-input" placeholder="Search brand, reference..." oninput="renderGrid()" id="search-input">
+    <input type="text" class="search-input" placeholder="Zoek merk, referentie..." oninput="renderGrid()" id="search-input">
   </div>
   <select onchange="renderGrid()" id="filter-brand">
-    <option value="">All Brands</option>
+    <option value="">Alle Merken</option>
   </select>
   <select onchange="renderGrid()" id="filter-status">
-    <option value="">All Status</option>
-    <option value="In Stock">In Stock</option>
-    <option value="Low Stock">Low Stock</option>
-    <option value="Out of Stock">Out of Stock</option>
+    <option value="">Alle Status</option>
+    <option value="In Stock">Op Voorraad</option>
+    <option value="Out of Stock">Niet Op Voorraad</option>
   </select>
   <select onchange="renderGrid()" id="sort-by">
-    <option value="added">Newest First</option>
-    <option value="name">Brand A–Z</option>
-    <option value="qty">Quantity</option>
+    <option value="added">Nieuwste Eerst</option>
+    <option value="name">Merk A–Z</option>
+    <option value="qty">Aantal</option>
   </select>
   <div class="view-toggle">
     <button class="view-btn active" onclick="setView('grid', this)" title="Grid">⊞</button>
@@ -921,21 +990,22 @@
     </div>
     <div class="modal-body">
       <div class="form-group">
-        <label>Watch Image</label>
+        <label>Afbeelding</label>
         <div class="img-upload-area" id="upload-area">
           <input type="file" accept="image/*" onchange="handleFileUpload(event)">
           <img class="upload-preview" id="upload-preview">
-          <div class="upload-text" id="upload-text">📷 Click or drag to upload image</div>
+          <div class="upload-text" id="upload-text">📷 Klik of sleep om een foto te uploaden</div>
         </div>
-        <div class="url-divider" style="margin:0.5rem 0">or</div>
-        <input type="url" id="img-url" placeholder="Paste image URL..." oninput="handleUrlInput()">
+        <div class="url-divider" style="margin:0.5rem 0">of</div>
+        <input type="url" id="img-url" placeholder="Plak een afbeeldings-URL..." oninput="handleUrlInput()">
       </div>
       <!-- TYPE TOGGLE -->
       <div class="form-group">
         <label>Type *</label>
         <div class="type-toggle">
-          <button type="button" class="type-btn active" id="type-watch" onclick="setType('Watch')">⌚ Watch</button>
-          <button type="button" class="type-btn" id="type-box" onclick="setType('Watch Box')">□ Watch Box</button>
+          <button type="button" class="type-btn active" id="type-watch" onclick="setType('Watch')">⌚ Horloge</button>
+          <button type="button" class="type-btn" id="type-box" onclick="setType('Watch Box')">□ Horlogebox</button>
+          <button type="button" class="type-btn" id="type-sunglass" onclick="setType('Sunglasses')">🕶 Zonnebril</button>
         </div>
         <input type="hidden" id="f-type" value="Watch">
       </div>
@@ -943,9 +1013,9 @@
       <!-- WATCH FIELDS -->
       <div id="watch-fields">
         <div class="form-group">
-          <label>Brand *</label>
+          <label>Merk *</label>
           <select id="f-brand" onchange="updateModels()">
-            <option value="">— Select brand —</option>
+            <option value="">— Selecteer merk —</option>
             <option>Rolex</option>
             <option>Patek Philippe</option>
             <option>Audemars Piguet</option>
@@ -965,7 +1035,7 @@
         <div class="form-group">
           <label>Model *</label>
           <select id="f-model">
-            <option value="">— Select brand first —</option>
+            <option value="">— Selecteer eerst een merk —</option>
           </select>
         </div>
       </div>
@@ -973,9 +1043,9 @@
       <!-- BOX FIELDS -->
       <div id="box-fields" style="display:none">
         <div class="form-group">
-          <label>Box Brand *</label>
+          <label>Merk Box *</label>
           <select id="f-box-brand" onchange="updateBoxModels()">
-            <option value="">— Select brand —</option>
+            <option value="">— Selecteer merk —</option>
             <option>Rolex</option>
             <option>Patek Philippe</option>
             <option>Audemars Piguet</option>
@@ -995,40 +1065,148 @@
         <div class="form-group">
           <label>Model *</label>
           <select id="f-box-model">
-            <option value="">— Select brand first —</option>
+            <option value="">— Selecteer eerst een merk —</option>
           </select>
         </div>
       </div>
-      <div class="form-row">
+      <!-- SUNGLASSES FIELDS -->
+      <div id="sunglass-fields" style="display:none">
         <div class="form-group">
-          <label>Reference</label>
-          <input type="text" id="f-ref" placeholder="e.g. 126610LN">
+          <label>Merk *</label>
+          <select id="f-sg-brand" onchange="updateSunglassModels()">
+            <option value="">— Selecteer merk —</option>
+            <option>Ray-Ban</option>
+            <option>Oakley</option>
+            <option>Gucci</option>
+            <option>Prada</option>
+            <option>Tom Ford</option>
+            <option>Versace</option>
+            <option>Dior</option>
+            <option>Chanel</option>
+            <option>Saint Laurent</option>
+            <option>Balenciaga</option>
+            <option>Bottega Veneta</option>
+            <option>Celine</option>
+            <option>Fendi</option>
+            <option>Givenchy</option>
+            <option>Persol</option>
+            <option>Moncler</option>
+            <option>Cartier</option>
+            <option>Gentle Monster</option>
+          </select>
         </div>
         <div class="form-group">
-          <label>Case Size (mm)</label>
-          <input type="number" id="f-size" placeholder="e.g. 40">
+          <label>Model *</label>
+          <select id="f-sg-model">
+            <option value="">— Selecteer eerst een merk —</option>
+          </select>
         </div>
+      </div>
+
+      <div class="form-group">
+        <input type="text" id="f-ref" placeholder="bijv. 126610LN">
       </div>
       <div class="form-group">
         <label>Status</label>
         <select id="f-status">
-          <option value="In Stock">In Stock</option>
-          <option value="Low Stock">Low Stock</option>
-          <option value="Out of Stock">Out of Stock</option>
+          <option value="In Stock">Op Voorraad</option>
+          <option value="Out of Stock">Niet Op Voorraad</option>
         </select>
       </div>
       <div class="form-group">
-        <label>Quantity</label>
+        <label>Aantal</label>
         <input type="number" id="f-qty" value="1" min="0">
       </div>
       <div class="form-group">
-        <label>Notes</label>
-        <textarea id="f-notes" placeholder="Notes..."></textarea>
+        <label>Notities</label>
+        <textarea id="f-notes" placeholder="Notities..."></textarea>
       </div>
     </div>
     <div class="modal-footer">
-      <button class="btn-cancel" onclick="closeModal()">Cancel</button>
-      <button class="btn-save" onclick="saveWatch()">Save Watch</button>
+      <button class="btn-cancel" onclick="closeModal()">Annuleren</button>
+      <button class="btn-save" onclick="saveWatch()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- STOCK EDIT MODAL -->
+<div class="overlay" id="stock-overlay" onclick="handleStockOverlayClick(event)">
+  <div class="modal" style="max-width:340px">
+    <div class="modal-header">
+      <div class="modal-title" id="stock-title">Voorraad Bewerken</div>
+      <button class="modal-close" onclick="closeStock()">✕</button>
+    </div>
+    <div class="modal-body" style="gap:1.4rem">
+      <div style="font-family:'Cormorant Garamond',serif;font-size:1rem;color:var(--text-muted);font-style:italic;margin-top:-0.5rem" id="stock-subtitle"></div>
+      <div class="form-group">
+        <label>Aantal In Voorraad</label>
+        <div style="display:flex;align-items:center;gap:0.8rem">
+          <button class="qty-btn" onclick="adjustQty(-1)">−</button>
+          <input type="number" id="stock-qty" min="0" style="text-align:center;font-size:1.2rem;width:80px;font-weight:700;color:var(--gold)">
+          <button class="qty-btn" onclick="adjustQty(1)">+</button>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Status</label>
+        <select id="stock-status">
+          <option value="In Stock">Op Voorraad</option>
+          <option value="Out of Stock">Niet Op Voorraad</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeStock()">Annuleren</button>
+      <button class="btn-save" onclick="saveStock()">Voorraad Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<!-- ADMIN LOGIN MODAL -->
+<div class="overlay" id="login-overlay">
+  <div class="modal" style="max-width:320px">
+    <div class="modal-header">
+      <div class="modal-title">Beheerderstoegang</div>
+    </div>
+    <div class="modal-body" style="gap:1.2rem">
+      <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:0.05rem;line-height:1.6">Voer het beheerderswachtwoord in om bewerken te ontgrendelen.</div>
+      <div class="form-group">
+        <label>Wachtwoord</label>
+        <input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
+        <div id="login-err" style="font-size:0.65rem;color:var(--red);display:none;margin-top:0.3rem">Onjuist wachtwoord.</div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeLogin()">Annuleren</button>
+      <button class="btn-save" onclick="doLogin()">Ontgrendelen</button>
+    </div>
+  </div>
+</div>
+
+<!-- CHANGE PASSWORD MODAL -->
+<div class="overlay" id="changepw-overlay">
+  <div class="modal" style="max-width:320px">
+    <div class="modal-header">
+      <div class="modal-title">Wachtwoord Wijzigen</div>
+      <button class="modal-close" onclick="closeChangePw()">✕</button>
+    </div>
+    <div class="modal-body" style="gap:1.2rem">
+      <div class="form-group">
+        <label>Huidig Wachtwoord</label>
+        <input type="password" id="pw-current" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Nieuw Wachtwoord</label>
+        <input type="password" id="pw-new" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Bevestig Nieuw Wachtwoord</label>
+        <input type="password" id="pw-confirm" placeholder="••••••••">
+      </div>
+      <div id="pw-err" style="font-size:0.65rem;color:var(--red);display:none"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeChangePw()">Annuleren</button>
+      <button class="btn-save" onclick="doChangePw()">Wachtwoord Opslaan</button>
     </div>
   </div>
 </div>
@@ -1046,6 +1224,87 @@ let watches = JSON.parse(localStorage.getItem('horolog_watches') || '[]');
 let editingId = null;
 let currentImg = null;
 let currentView = 'grid';
+let isAdmin = false;
+let currentCategory = 'watches';
+
+const DEFAULT_PASSWORD = 'admin1234';
+
+function getPassword() {
+  return localStorage.getItem('horolog_pw') || DEFAULT_PASSWORD;
+}
+
+function applyAdminUI() {
+  document.getElementById('btn-add-item').style.display = isAdmin ? '' : 'none';
+  const btn = document.getElementById('admin-btn');
+  btn.textContent = isAdmin ? '🔓' : '🔒';
+  btn.classList.toggle('unlocked', isAdmin);
+  renderGrid(); // re-render to show/hide action buttons
+}
+
+function handleAdminBtn() {
+  if (isAdmin) {
+    // show admin menu: lock or change password
+    if (confirm('Beheerdermodus vergrendelen?\n\nKlik op Annuleren om het wachtwoord te wijzigen.')) {
+      isAdmin = false;
+      applyAdminUI();
+    } else {
+      openChangePw();
+    }
+  } else {
+    openLogin();
+  }
+}
+
+function openLogin() {
+  document.getElementById('login-pw').value = '';
+  document.getElementById('login-err').style.display = 'none';
+  document.getElementById('login-overlay').classList.add('open');
+  setTimeout(() => document.getElementById('login-pw').focus(), 100);
+}
+
+function closeLogin() {
+  document.getElementById('login-overlay').classList.remove('open');
+}
+
+function doLogin() {
+  const pw = document.getElementById('login-pw').value;
+  if (pw === getPassword()) {
+    isAdmin = true;
+    closeLogin();
+    applyAdminUI();
+  } else {
+    document.getElementById('login-err').style.display = 'block';
+    document.getElementById('login-pw').value = '';
+    document.getElementById('login-pw').focus();
+  }
+}
+
+function openChangePw() {
+  document.getElementById('pw-current').value = '';
+  document.getElementById('pw-new').value = '';
+  document.getElementById('pw-confirm').value = '';
+  document.getElementById('pw-err').style.display = 'none';
+  document.getElementById('changepw-overlay').classList.add('open');
+}
+
+function closeChangePw() {
+  document.getElementById('changepw-overlay').classList.remove('open');
+}
+
+function doChangePw() {
+  const current = document.getElementById('pw-current').value;
+  const newPw = document.getElementById('pw-new').value;
+  const confirm = document.getElementById('pw-confirm').value;
+  const err = document.getElementById('pw-err');
+
+  if (current !== getPassword()) { err.textContent = 'Huidig wachtwoord is onjuist.'; err.style.display = 'block'; return; }
+  if (newPw.length < 4) { err.textContent = 'Nieuw wachtwoord moet minimaal 4 tekens bevatten.'; err.style.display = 'block'; return; }
+  if (newPw !== confirm) { err.textContent = 'Wachtwoorden komen niet overeen.'; err.style.display = 'block'; return; }
+
+  localStorage.setItem('horolog_pw', newPw);
+  closeChangePw();
+  alert('Wachtwoord succesvol gewijzigd.');
+}
 
 function save() {
   localStorage.setItem('horolog_watches', JSON.stringify(watches));
@@ -1072,13 +1331,43 @@ const MODELS = {
   'Panerai': ['Luminor', 'Radiomir', 'Submersible', 'Luminor Due', 'Luminor Marina', 'Luminor Base'],
 };
 
+const SUNGLASS_MODELS = {
+  'Ray-Ban': ['Aviator', 'Wayfarer', 'Clubmaster', 'Round', 'Justin', 'Erika', 'Hexagonal', 'Boyfriend', 'Highstreet', 'Caravan'],
+  'Oakley': ['Holbrook', 'Frogskins', 'Sutro', 'Radar EV', 'Flak 2.0', 'Prizm', 'Clifden', 'Latch', 'Split Shot', 'HSTN'],
+  'Gucci': ['GG0061S', 'GG0396S', 'GG1087S', 'Navigator', 'Rectangular', 'Oval', 'Cat-Eye', 'Pilot'],
+  'Prada': ['Symbole', 'Linea Rossa', 'PR 17WS', 'PR 57YS', 'Catwalk', 'Runway', 'Hide', 'Minimal Baroque'],
+  'Tom Ford': ['Buckley', 'Warren', 'Heston', 'Snowdon', 'Leo', 'James', 'Dimitry', 'Fletcher', 'Eric'],
+  'Versace': ['Medusa', 'GV2262', 'Signature', 'Palazzo', 'Icon', 'Rock Icons', 'Tribute'],
+  'Dior': ['DiorBlackSuit', 'DiorSignature', 'DiorSoLight', 'DiorNuit', 'DiorEclat', 'CD Diamond', 'So Real'],
+  'Chanel': ['5408', '5171', 'Square', 'Butterfly', 'Shield', 'Cat-Eye', 'Rectangle', 'Round'],
+  'Saint Laurent': ['SL 51', 'SL 28', 'SL 469', 'SL M40', 'Dylan', 'Betty', 'Classic'],
+  'Balenciaga': ['Flat Square', 'Bossy', 'Dynasty', 'Bat', 'Extreme', 'Shield', 'Mask'],
+  'Bottega Veneta': ['Bolt', 'Sardine', 'BV1001S', 'Angle', 'Classic', 'Triangle'],
+  'Celine': ['CL40197U', 'Thin Mary', 'Triomphe', 'Kim', 'Black Frame', 'Square'],
+  'Fendi': ['FF0372', 'Baguette', 'O\'Lock', 'Way', 'Feel', 'Touch'],
+  'Givenchy': ['GV40001U', 'GV7185', 'Geometric', 'Round', 'Shield'],
+  'Persol': ['PO3092SM', 'PO649', 'PO0714', 'PO3019S', 'PO3152S', 'Meflecto', 'Cellor'],
+  'Moncler': ['ML0049', 'Tronn', 'Colada', 'Bilayer', 'Playreel'],
+  'Cartier': ['Santos', 'Panthère', 'Vendôme', 'Décor', 'CT0291S', 'Première'],
+  'Gentle Monster': ['Halo', 'Big Bully', 'Musee', 'Absente', 'IIII', 'Frida', 'Lilit', 'Yuge'],
+};
+
+function updateSunglassModels(selectedModel) {
+  const brand = document.getElementById('f-sg-brand').value;
+  const sel = document.getElementById('f-sg-model');
+  const models = SUNGLASS_MODELS[brand] || [];
+  sel.innerHTML = models.length
+    ? '<option value="">— Selecteer model —</option>' + models.map(m => `<option${m===selectedModel?' selected':''}>${m}</option>`).join('')
+    : '<option value="">— Selecteer eerst een merk —</option>';
+}
+
 function updateModels(selectedModel) {
   const brand = document.getElementById('f-brand').value;
   const sel = document.getElementById('f-model');
   const models = MODELS[brand] || [];
   sel.innerHTML = models.length
-    ? '<option value="">— Select model —</option>' + models.map(m => `<option${m===selectedModel?' selected':''}>${m}</option>`).join('')
-    : '<option value="">— Select brand first —</option>';
+    ? '<option value="">— Selecteer model —</option>' + models.map(m => `<option${m===selectedModel?' selected':''}>${m}</option>`).join('')
+    : '<option value="">— Selecteer eerst een merk —</option>';
 }
 
 function updateBoxModels(selectedModel) {
@@ -1086,28 +1375,33 @@ function updateBoxModels(selectedModel) {
   const sel = document.getElementById('f-box-model');
   const models = MODELS[brand] || [];
   sel.innerHTML = models.length
-    ? '<option value="">— Select model —</option>' + models.map(m => `<option${m===selectedModel?' selected':''}>${m}</option>`).join('')
-    : '<option value="">— Select brand first —</option>';
+    ? '<option value="">— Selecteer model —</option>' + models.map(m => `<option${m===selectedModel?' selected':''}>${m}</option>`).join('')
+    : '<option value="">— Selecteer eerst een merk —</option>';
 }
 
 function getBadge(status) {
-  if (status === 'In Stock') return '<span class="badge badge-in">In Stock</span>';
-  if (status === 'Low Stock') return '<span class="badge badge-low">Low Stock</span>';
-  return '<span class="badge badge-out">Out of Stock</span>';
+  if (status === 'In Stock') return '<span class="badge badge-in">Op Voorraad</span>';
+  return '<span class="badge badge-out">Niet Op Voorraad</span>';
+}
+
+function setCategory(cat) {
+  currentCategory = cat;
+  document.getElementById('cat-watches').classList.toggle('active', cat === 'watches');
+  document.getElementById('cat-sunglasses').classList.toggle('active', cat === 'sunglasses');
+  renderGrid();
 }
 
 function setType(type) {
   document.getElementById('f-type').value = type;
   document.getElementById('type-watch').classList.toggle('active', type === 'Watch');
   document.getElementById('type-box').classList.toggle('active', type === 'Watch Box');
+  document.getElementById('type-sunglass').classList.toggle('active', type === 'Sunglasses');
   document.getElementById('watch-fields').style.display = type === 'Watch' ? '' : 'none';
   document.getElementById('box-fields').style.display = type === 'Watch Box' ? '' : 'none';
+  document.getElementById('sunglass-fields').style.display = type === 'Sunglasses' ? '' : 'none';
 }
 
 
-  if (!n) return '—';
-  return '€' + Number(n).toLocaleString('de-DE');
-}
 
 function getFiltered() {
   const q = document.getElementById('search-input').value.toLowerCase();
@@ -1116,10 +1410,14 @@ function getFiltered() {
   const sort = document.getElementById('sort-by').value;
 
   let list = watches.filter(w => {
-    const match = !q || [w.brand,w.model,w.ref,w.serial,w.notes].join(' ').toLowerCase().includes(q);
-    const brandMatch = !brand || w.brand === brand;
+    const isSunglasses = w.type === 'Sunglasses';
+    const categoryMatch = currentCategory === 'sunglasses' ? isSunglasses : !isSunglasses;
+    const searchBrand = isSunglasses ? w.sgBrand : w.brand;
+    const searchModel = isSunglasses ? w.sgModel : w.model;
+    const match = !q || [searchBrand, searchModel, w.ref, w.notes].join(' ').toLowerCase().includes(q);
+    const brandMatch = !brand || searchBrand === brand;
     const statusMatch = !status || w.status === status;
-    return match && brandMatch && statusMatch;
+    return categoryMatch && match && brandMatch && statusMatch;
   });
 
   if (sort === 'name') list.sort((a,b) => (a.brand).localeCompare(b.brand));
@@ -1132,48 +1430,59 @@ function getFiltered() {
 function renderGrid() {
   const list = getFiltered();
   const grid = document.getElementById('grid');
-  document.getElementById('section-meta').textContent = `${list.length} item${list.length!==1?'s':''} shown`;
+  document.getElementById('section-meta').textContent = `${list.length} artikel${list.length!==1?'en':''} gevonden`;
 
   // Update header stats
   const totalQty = watches.reduce((s,w) => s+(parseInt(w.qty)||0), 0);
   document.getElementById('total-count').textContent = totalQty;
 
-  // Update brand filter — show watch brands + "Boxes" if any box items exist
-  const watchBrands = [...new Set(watches.filter(w=>w.type!=='Watch Box').map(w=>w.brand).filter(Boolean))].sort();
-  const hasBoxes = watches.some(w=>w.type==='Watch Box');
+  const isSunCat = currentCategory === 'sunglasses';
+
+  // Update brand filter based on category
   const fb = document.getElementById('filter-brand');
   const curBrand = fb.value;
-  fb.innerHTML = '<option value="">All Brands</option>'
-    + (hasBoxes ? `<option ${curBrand==='Boxes'?'selected':''}>Boxes</option>` : '')
-    + watchBrands.map(b=>`<option ${b===curBrand?'selected':''}>${b}</option>`).join('');
+  if (isSunCat) {
+    const sgBrands = [...new Set(watches.filter(w=>w.type==='Sunglasses').map(w=>w.sgBrand).filter(Boolean))].sort();
+    fb.innerHTML = '<option value="">Alle Merken</option>' + sgBrands.map(b=>`<option ${b===curBrand?'selected':''}>${b}</option>`).join('');
+  } else {
+    const watchBrands = [...new Set(watches.filter(w=>w.type!=='Watch Box'&&w.type!=='Sunglasses').map(w=>w.brand).filter(Boolean))].sort();
+    const hasBoxes = watches.some(w=>w.type==='Watch Box');
+    fb.innerHTML = '<option value="">Alle Merken</option>'
+      + (hasBoxes ? `<option ${curBrand==='Boxes'?'selected':''}>Boxes</option>` : '')
+      + watchBrands.map(b=>`<option ${b===curBrand?'selected':''}>${b}</option>`).join('');
+  }
 
   if (!list.length) {
-    grid.innerHTML = `<div class="empty"><div class="empty-icon">⌚</div><h3>No items found</h3><p>Add your first item or adjust filters</p></div>`;
+    grid.innerHTML = `<div class="empty"><div class="empty-icon">⌚</div><h3>Geen artikelen gevonden</h3><p>Voeg uw eerste artikel toe of pas filters aan</p></div>`;
     return;
   }
 
   grid.innerHTML = list.map((w, i) => {
     const isBox = w.type === 'Watch Box';
+    const isSun = w.type === 'Sunglasses';
+    const icon = isBox ? '□' : isSun ? '🕶' : '⌚';
     const imgHtml = w.img
-      ? `<img class="card-img" src="${w.img}" alt="${w.brand}" loading="lazy">`
-      : `<div class="card-img-placeholder">${isBox ? '□' : '⌚'}</div>`;
-    const displayName = isBox ? `Boxes · ${w.boxBrand||''}` : (w.brand||'Unknown');
-    const displayModel = isBox ? (w.boxModel||'') : (w.model||'');
+      ? `<img class="card-img" src="${w.img}" alt="${isSun ? w.sgBrand : w.brand}" loading="lazy">`
+      : `<div class="card-img-placeholder">${icon}</div>`;
+    const displayName = isBox ? `Boxes · ${w.boxBrand||''}` : isSun ? (w.sgBrand||'Onbekend') : (w.brand||'Onbekend');
+    const displayModel = isBox ? (w.boxModel||'') : isSun ? (w.sgModel||'') : (w.model||'');
+    const refLabel = isBox ? '<span style="font-size:0.55rem;letter-spacing:0.15rem;color:var(--gold-dim);text-transform:uppercase">Horlogebox</span>' : isSun ? '<span style="font-size:0.55rem;letter-spacing:0.15rem;color:var(--gold-dim);text-transform:uppercase">Zonnebril</span>' : (w.ref||'');
     return `
     <div class="card" style="animation-delay:${i*0.04}s" onclick="openDetail('${w.id}')">
       ${imgHtml}
       <div class="card-body">
-        <div class="card-ref">${isBox ? '<span style="font-size:0.55rem;letter-spacing:0.15rem;color:var(--gold-dim);text-transform:uppercase">Watch Box</span>' : (w.ref||'')}</div>
+        <div class="card-ref">${refLabel}</div>
         <div class="card-name">${displayName}</div>
         <div class="card-model">${displayModel}</div>
         <div class="card-meta">
           ${getBadge(w.status||'In Stock')}
         </div>
       </div>
-      <div class="card-actions" onclick="event.stopPropagation()">
-        <button class="icon-btn" onclick="openModal('${w.id}')" title="Edit">✎</button>
-        <button class="icon-btn del" onclick="deleteWatch('${w.id}')" title="Delete">✕</button>
-      </div>
+      ${isAdmin ? `<div class="card-actions" onclick="event.stopPropagation()">
+        <button class="icon-btn" onclick="openStock('${w.id}')" title="Voorraad bewerken">◈</button>
+        <button class="icon-btn" onclick="openModal('${w.id}')" title="Bewerken">✎</button>
+        <button class="icon-btn del" onclick="deleteWatch('${w.id}')" title="Verwijderen">✕</button>
+      </div>` : ''}
     </div>`;
   }).join('');
 }
@@ -1182,30 +1491,82 @@ function openDetail(id) {
   const w = watches.find(x=>x.id===id);
   if (!w) return;
   const isBox = w.type === 'Watch Box';
+  const isSun = w.type === 'Sunglasses';
+  const icon = isBox ? '□' : isSun ? '🕶' : '⌚';
   const imgHtml = w.img
-    ? `<img class="detail-img" src="${w.img}" alt="${w.brand}">`
-    : `<div class="detail-img-placeholder">${isBox ? '□' : '⌚'}</div>`;
+    ? `<img class="detail-img" src="${w.img}" alt="${isSun ? w.sgBrand : w.brand}">`
+    : `<div class="detail-img-placeholder">${icon}</div>`;
+  const detailRef = isBox ? 'Horlogebox' : isSun ? 'Zonnebril' : (w.ref||'');
+  const detailName = isBox ? `Boxes · ${w.boxBrand||''}` : isSun ? (w.sgBrand||'Onbekend') : (w.brand||'Onbekend');
+  const detailModel = isBox ? (w.boxModel||'') : isSun ? (w.sgModel||'') : (w.model||'');
 
   document.getElementById('detail-content').innerHTML = `
     ${imgHtml}
     <div class="detail-body">
-      <div class="detail-ref">${isBox ? 'Watch Box' : (w.ref||'')}</div>
-      <div class="detail-name">${isBox ? `Boxes · ${w.boxBrand||''}` : (w.brand||'Unknown')}</div>
-      <div class="detail-model">${isBox ? (w.boxModel||'') : (w.model||'')}</div>
+      <div class="detail-ref">${detailRef}</div>
+      <div class="detail-name">${detailName}</div>
+      <div class="detail-model">${detailModel}</div>
       <div class="detail-grid">
         <div class="detail-field"><label>Status</label><div class="detail-field-val">${getBadge(w.status||'In Stock')}</div></div>
-        <div class="detail-field"><label>Quantity</label><div class="detail-field-val">${w.qty||1}</div></div>
-        ${!isBox && w.size ? `<div class="detail-field"><label>Case Size</label><div class="detail-field-val">${w.size}mm</div></div>` : ''}
-        ${!isBox && w.ref ? `<div class="detail-field"><label>Reference</label><div class="detail-field-val">${w.ref}</div></div>` : ''}
+        <div class="detail-field"><label>Aantal</label><div class="detail-field-val">${w.qty||1}</div></div>
+        ${!isBox && !isSun && w.ref ? `<div class="detail-field"><label>Referentie</label><div class="detail-field-val">${w.ref}</div></div>` : ''}
       </div>
       ${w.notes?`<div class="detail-desc">${w.notes}</div>`:''}
     </div>
     <div class="detail-actions">
-      <button class="btn-save" style="flex:1" onclick="closeDetail();openModal('${w.id}')">✎ Edit Item</button>
-      <button class="btn-cancel" onclick="closeDetail()">Close</button>
+      ${isAdmin ? `<button class="btn-save" style="flex:1" onclick="closeDetail();openStock('${w.id}')">◈ Voorraad Bewerken</button>
+      <button class="btn-cancel" style="flex:1" onclick="closeDetail();openModal('${w.id}')">✎ Bewerken</button>` : ''}
+      <button class="btn-cancel" onclick="closeDetail()">Sluiten</button>
     </div>
   `;
   document.getElementById('detail-overlay').classList.add('open');
+}
+
+let stockId = null;
+
+function openStock(id) {
+  if (!isAdmin) return;
+  const w = watches.find(x=>x.id===id);
+  if (!w) return;
+  stockId = id;
+  const isBox = w.type === 'Watch Box';
+  const isSun = w.type === 'Sunglasses';
+  const name = isBox ? `Boxes · ${w.boxBrand} · ${w.boxModel}` : isSun ? `${w.sgBrand} ${w.sgModel}` : `${w.brand} ${w.model}${w.ref?' · '+w.ref:''}`;
+  document.getElementById('stock-title').textContent = 'Edit Stock';
+  document.getElementById('stock-subtitle').textContent = name;
+  document.getElementById('stock-qty').value = w.qty||0;
+  document.getElementById('stock-status').value = w.status||'In Stock';
+  document.getElementById('stock-overlay').classList.add('open');
+}
+
+function closeStock() {
+  document.getElementById('stock-overlay').classList.remove('open');
+  stockId = null;
+}
+
+function handleStockOverlayClick(e) {
+  if (e.target === document.getElementById('stock-overlay')) closeStock();
+}
+
+function adjustQty(delta) {
+  const input = document.getElementById('stock-qty');
+  const val = Math.max(0, (parseInt(input.value)||0) + delta);
+  input.value = val;
+  // auto-set status based on qty
+  const statusEl = document.getElementById('stock-status');
+  if (val === 0) statusEl.value = 'Out of Stock';
+  else statusEl.value = 'In Stock';
+}
+
+function saveStock() {
+  if (!stockId) return;
+  const idx = watches.findIndex(w=>w.id===stockId);
+  if (idx === -1) return;
+  watches[idx].qty = parseInt(document.getElementById('stock-qty').value)||0;
+  watches[idx].status = document.getElementById('stock-status').value;
+  save();
+  closeStock();
+  renderGrid();
 }
 
 function closeDetail() {
@@ -1217,22 +1578,26 @@ function handleDetailOverlayClick(e) {
 }
 
 function openModal(id) {
+  if (!isAdmin) return;
   editingId = id || null;
   currentImg = null;
   const modal = document.getElementById('modal-overlay');
-  document.getElementById('modal-title').textContent = id ? 'Edit Item' : 'New Item';
+  document.getElementById('modal-title').textContent = id ? 'Bewerken' : 'Nieuw Item';
 
   // reset
-  ['f-ref','f-size','f-qty','f-notes','img-url'].forEach(f => {
+  ['f-ref','f-qty','f-notes','img-url'].forEach(f => {
     document.getElementById(f).value = '';
   });
   document.getElementById('f-qty').value = 1;
   document.getElementById('f-status').value = 'In Stock';
   document.getElementById('f-brand').value = '';
-  document.getElementById('f-model').innerHTML = '<option value="">— Select brand first —</option>';
+  document.getElementById('f-model').innerHTML = '<option value="">— Selecteer eerst een merk —</option>';
   document.getElementById('f-box-brand').value = '';
-  document.getElementById('f-box-model').innerHTML = '<option value="">— Select brand first —</option>';
-  setType('Watch');
+  document.getElementById('f-box-model').innerHTML = '<option value="">— Selecteer eerst een merk —</option>';
+  document.getElementById('f-sg-brand').value = '';
+  document.getElementById('f-sg-model').innerHTML = '<option value="">— Selecteer eerst een merk —</option>';
+  // default type based on active category
+  setType(currentCategory === 'sunglasses' ? 'Sunglasses' : 'Watch');
   document.getElementById('upload-preview').style.display = 'none';
   document.getElementById('upload-text').style.display = 'block';
 
@@ -1244,8 +1609,9 @@ function openModal(id) {
       updateModels(w.model||'');
       document.getElementById('f-box-brand').value = w.boxBrand||'';
       updateBoxModels(w.boxModel||'');
+      document.getElementById('f-sg-brand').value = w.sgBrand||'';
+      updateSunglassModels(w.sgModel||'');
       document.getElementById('f-ref').value = w.ref||'';
-      document.getElementById('f-size').value = w.size||'';
       document.getElementById('f-qty').value = w.qty||1;
       document.getElementById('f-notes').value = w.notes||'';
       document.getElementById('f-status').value = w.status||'In Stock';
@@ -1253,7 +1619,7 @@ function openModal(id) {
         currentImg = w.img;
         document.getElementById('upload-preview').src = w.img;
         document.getElementById('upload-preview').style.display = 'block';
-        document.getElementById('upload-text').textContent = '✓ Image set';
+        document.getElementById('upload-text').textContent = '✓ Afbeelding ingesteld';
         document.getElementById('img-url').value = w.img.startsWith('data:') ? '' : w.img;
       }
     }
@@ -1291,30 +1657,34 @@ function handleUrlInput() {
     currentImg = url;
     document.getElementById('upload-preview').src = url;
     document.getElementById('upload-preview').style.display = 'block';
-    document.getElementById('upload-text').textContent = '✓ URL set';
+    document.getElementById('upload-text').textContent = '✓ URL ingesteld';
   }
 }
 
 function saveWatch() {
   const type = document.getElementById('f-type').value;
   const isBox = type === 'Watch Box';
-  const brand = isBox ? 'Boxes' : document.getElementById('f-brand').value;
-  const model = isBox ? '' : document.getElementById('f-model').value;
+  const isSun = type === 'Sunglasses';
+  const brand = isBox ? 'Boxes' : isSun ? 'Sunglasses' : document.getElementById('f-brand').value;
+  const model = (isBox || isSun) ? '' : document.getElementById('f-model').value;
   const boxBrand = isBox ? document.getElementById('f-box-brand').value : '';
   const boxModel = isBox ? document.getElementById('f-box-model').value : '';
+  const sgBrand = isSun ? document.getElementById('f-sg-brand').value : '';
+  const sgModel = isSun ? document.getElementById('f-sg-model').value : '';
 
-  if (!isBox && !brand) { alert('Please select a brand.'); return; }
-  if (!isBox && !model) { alert('Please select a model.'); return; }
-  if (isBox && !boxBrand) { alert('Please select a box brand.'); return; }
-  if (isBox && !boxModel) { alert('Please select a box model.'); return; }
+  if (!isBox && !isSun && !brand) { alert('Selecteer een merk.'); return; }
+  if (!isBox && !isSun && !model) { alert('Selecteer een model.'); return; }
+  if (isBox && !boxBrand) { alert('Selecteer een boxmerk.'); return; }
+  if (isBox && !boxModel) { alert('Selecteer een boxmodel.'); return; }
+  if (isSun && !sgBrand) { alert('Selecteer een merk.'); return; }
+  if (isSun && !sgModel) { alert('Selecteer een model.'); return; }
 
   const urlImg = document.getElementById('img-url').value.trim();
   const img = urlImg || currentImg || null;
 
   const data = {
-    type, brand, model, boxBrand, boxModel,
+    type, brand, model, boxBrand, boxModel, sgBrand, sgModel,
     ref: document.getElementById('f-ref').value.trim(),
-    size: document.getElementById('f-size').value,
     status: document.getElementById('f-status').value,
     qty: parseInt(document.getElementById('f-qty').value)||1,
     notes: document.getElementById('f-notes').value.trim(),
@@ -1334,6 +1704,7 @@ function saveWatch() {
 }
 
 function deleteWatch(id) {
+  if (!isAdmin) return;
   if (!confirm('Remove this item from inventory?')) return;
   watches = watches.filter(w=>w.id!==id);
   save();
@@ -1351,7 +1722,7 @@ function setView(view, btn) {
 
 // Keyboard
 document.addEventListener('keydown', e => {
-  if (e.key === 'Escape') { closeModal(); closeDetail(); }
+  if (e.key === 'Escape') { closeModal(); closeDetail(); closeStock(); closeLogin(); closeChangePw(); }
   if ((e.ctrlKey||e.metaKey) && e.key==='k') { e.preventDefault(); document.getElementById('search-input').focus(); }
 });
 
