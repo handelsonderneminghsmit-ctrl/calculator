@@ -8,7 +8,8 @@
 <!-- Firebase -->
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js';
-import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc, getDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getFirestore, collection, doc, onSnapshot, setDoc, deleteDoc } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js';
+import { getAuth, signInWithEmailAndPassword, signOut, onAuthStateChanged, updatePassword, EmailAuthProvider, reauthenticateWithCredential } from 'https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js';
 
 // ─────────────────────────────────────────────────────────────────
 // PASTE YOUR FIREBASE CONFIG HERE
@@ -27,35 +28,41 @@ const firebaseConfig = {
 const configured = firebaseConfig.projectId && firebaseConfig.projectId.length > 0;
 
 if (configured) {
-  const app = initializeApp(firebaseConfig);
-  const db = getFirestore(app);
+  const app  = initializeApp(firebaseConfig);
+  const db   = getFirestore(app);
+  const auth = getAuth(app);
 
-  // Two separate collections: inventory items and settings
   const inventoryCol = collection(db, 'inventory');
-  const settingsDoc  = doc(db, 'settings', 'main');
 
-  // Expose Firestore helpers to main script
-  window._firebaseReady = true;
-  window._setDoc    = (ref, data) => setDoc(ref, data);
-  window._deleteDoc = (ref) => deleteDoc(ref);
-  window._inventoryDocRef = (id) => doc(db, 'inventory', id);
-  window._settingsDocRef  = settingsDoc;
+  // Expose helpers to main script
+  window._firebaseReady       = true;
+  window._auth                = auth;
+  window._setDoc              = (ref, data, opts) => setDoc(ref, data, opts || {});
+  window._deleteDoc           = (ref) => deleteDoc(ref);
+  window._inventoryDocRef     = (id) => doc(db, 'inventory', id);
 
-  // ── Real-time inventory listener ──
+  // Firebase Auth functions exposed to main script
+  window._signIn = (email, password) => signInWithEmailAndPassword(auth, email, password);
+  window._signOut = () => signOut(auth);
+  window._updatePassword = (newPw) => updatePassword(auth.currentUser, newPw);
+  window._reauthenticate = (email, password) => {
+    const credential = EmailAuthProvider.credential(email, password);
+    return reauthenticateWithCredential(auth.currentUser, credential);
+  };
+
+  // ── Auth state listener — source of truth for admin status ──
+  onAuthStateChanged(auth, (user) => {
+    window._firebaseUser = user || null;
+    if (window._onAuthChange) window._onAuthChange(user);
+  });
+
+  // ── Real-time inventory listener (only fires when user is authenticated via Firestore Rules) ──
   onSnapshot(inventoryCol, (snapshot) => {
     window.watches = snapshot.docs.map(d => d.data());
     if (window.renderGrid) window.renderGrid();
-  });
-
-  // ── Real-time settings/password listener ──
-  onSnapshot(settingsDoc, (snap) => {
-    if (snap.exists()) {
-      const data = snap.data();
-      if (data.credentials) {
-        localStorage.setItem('empire_credentials', JSON.stringify(data.credentials));
-        window._cachedCredentials = data.credentials;
-      }
-    }
+  }, (err) => {
+    // Silently fail if not authenticated — expected behavior
+    console.info('Firestore: geen toegang (niet ingelogd)');
   });
 
 } else {
@@ -1307,21 +1314,25 @@ if (configured) {
 
 <!-- ADMIN LOGIN MODAL -->
 <div class="overlay" id="login-overlay">
-  <div class="modal" style="max-width:320px">
+  <div class="modal" style="max-width:340px">
     <div class="modal-header">
       <div class="modal-title">Beheerderstoegang</div>
     </div>
     <div class="modal-body" style="gap:1.2rem">
-      <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:0.05rem;line-height:1.6">Voer het beheerderswachtwoord in om bewerken te ontgrendelen.</div>
+      <div style="font-size:0.65rem;color:var(--text-muted);letter-spacing:0.05rem;line-height:1.6">Log in met je beheerdersaccount.</div>
+      <div class="form-group">
+        <label>E-mailadres</label>
+        <input type="email" id="login-email" placeholder="admin@example.com" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
       <div class="form-group">
         <label>Wachtwoord</label>
         <input type="password" id="login-pw" placeholder="••••••••" onkeydown="if(event.key==='Enter')doLogin()">
-        <div id="login-err" style="font-size:0.65rem;color:var(--red);display:none;margin-top:0.3rem">Onjuist wachtwoord.</div>
+        <div id="login-err" style="font-size:0.65rem;color:var(--red);display:none;margin-top:0.3rem"></div>
       </div>
     </div>
     <div class="modal-footer">
       <button class="btn-cancel" onclick="closeLogin()">Annuleren</button>
-      <button class="btn-save" onclick="doLogin()">Ontgrendelen</button>
+      <button class="btn-save" id="login-btn" onclick="doLogin()">Inloggen</button>
     </div>
   </div>
 </div>
@@ -1376,18 +1387,18 @@ let currentImg = null;
 let currentView = 'grid';
 let currentCategory = 'watches';
 
-// ── ADMIN SESSION (not exposed to window) ──
+// ── ADMIN SESSION — driven by Firebase Auth, not bypassable ──
 const _session = (() => {
   let _admin = false;
   let _timer = null;
-  const SESSION_MS = 30 * 60 * 1000; // 30 minuten auto-logout
+  const SESSION_MS = 60 * 60 * 1000; // 60 minuten auto-logout
 
   function _resetTimer() {
     clearTimeout(_timer);
-    _timer = setTimeout(() => {
+    _timer = setTimeout(async () => {
+      if (window._firebaseReady && window._signOut) await window._signOut();
       _admin = false;
       applyAdminUI();
-      console.info('Admin sessie verlopen.');
     }, SESSION_MS);
   }
 
@@ -1396,7 +1407,6 @@ const _session = (() => {
     login() {
       _admin = true;
       _resetTimer();
-      // Reset timer on any user interaction
       ['click','keydown','touchstart'].forEach(e =>
         document.addEventListener(e, _resetTimer, { passive: true })
       );
@@ -1411,34 +1421,23 @@ const _session = (() => {
   };
 })();
 
-// Proxy isAdmin reads from session object
-Object.defineProperty(window, 'isAdmin', { get() { return _session.isAdmin; } });
+// isAdmin is read-only from window — cannot be set externally
+Object.defineProperty(window, 'isAdmin', {
+  get() { return _session.isAdmin; },
+  set() { console.warn('Toegang geweigerd.'); }
+});
 
-// ── RATE LIMITER (brute force protection) ──
-const _rateLimit = (() => {
-  const MAX_ATTEMPTS = 5;
-  const LOCKOUT_MS   = 5 * 60 * 1000; // 5 minuten blokkering
-  let attempts = 0;
-  let lockedUntil = 0;
-
-  return {
-    check() {
-      if (Date.now() < lockedUntil) {
-        const secs = Math.ceil((lockedUntil - Date.now()) / 1000);
-        return { allowed: false, msg: `Te veel pogingen. Probeer over ${secs} seconden opnieuw.` };
-      }
-      return { allowed: true };
-    },
-    fail() {
-      attempts++;
-      if (attempts >= MAX_ATTEMPTS) {
-        lockedUntil = Date.now() + LOCKOUT_MS;
-        attempts = 0;
-      }
-    },
-    reset() { attempts = 0; lockedUntil = 0; }
-  };
-})();
+// ── AUTH STATE CALLBACK — fires when Firebase confirms login/logout ──
+window._onAuthChange = (user) => {
+  if (user) {
+    _session.login();
+    applyAdminUI();
+    closeLogin();
+  } else {
+    _session.logout();
+    applyAdminUI();
+  }
+};
 
 // ── MAKE WATCHES ACCESSIBLE TO FIREBASE LISTENER ──
 window.watches = watches;
@@ -1458,9 +1457,9 @@ function setSyncStatus(status) {
   else el.textContent = '';
 }
 
-// ── SAVE TO FIREBASE ──
+// ── SAVE — only works when Firebase confirms user is authenticated ──
 async function save() {
-  if (!_session.isAdmin) return; // extra server-side style guard
+  if (!_session.isAdmin) return;
   localStorage.setItem('horolog_watches', JSON.stringify(watches));
   if (!window._firebaseReady) { setSyncStatus('local'); return; }
   setSyncStatus('syncing');
@@ -1476,110 +1475,71 @@ async function save() {
   }
 }
 
-// ── INPUT SANITIZATION (prevent XSS) ──
+// ── INPUT SANITIZATION ──
 function sanitizeStr(s) {
   if (typeof s !== 'string') return '';
-  return s.replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#x27;').slice(0, 500);
+  return s.replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#x27;').slice(0, 500);
 }
 function sanitizeItem(item) {
   const clean = {};
   for (const key of Object.keys(item)) {
-    clean[key] = typeof item[key] === 'string' ? sanitizeStr(item[key]) : item[key];
+    // Never truncate the img field — base64 photos are very long
+    if (key === 'img') { clean[key] = item[key]; }
+    else clean[key] = typeof item[key] === 'string' ? sanitizeStr(item[key]) : item[key];
   }
   return clean;
 }
 
-// ── PASSWORD SECURITY ──
-const DEFAULT_PASSWORD = 'admin1234';
-// A static pepper — adds extra layer on top of salt+SHA-256
-const PEPPER = 'empire-watches-2025';
-
-async function sha256(str) {
-  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
-  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
-}
-
-// Hash with salt+pepper: SHA-256(pepper + salt + password + pepper)
-async function hashPassword(plaintext, salt) {
-  return sha256(PEPPER + salt + plaintext + PEPPER);
-}
-
-function getCachedCredentials() {
-  try {
-    const raw = localStorage.getItem('empire_credentials');
-    if (!raw) return null;
-    return JSON.parse(raw);
-  } catch { return null; }
-}
-
-async function checkPassword(plaintext) {
-  const creds = window._cachedCredentials || getCachedCredentials();
-  if (!creds || !creds.hash || !creds.salt) {
-    // No credentials stored yet — accept default and auto-migrate
-    const salt = crypto.randomUUID();
-    const hash = await hashPassword(DEFAULT_PASSWORD, salt);
-    if (await hashPassword(plaintext, salt) === hash || plaintext === DEFAULT_PASSWORD) {
-      // Migrate: store proper salted hash immediately
-      await storeCredentials(DEFAULT_PASSWORD);
-      return plaintext === DEFAULT_PASSWORD;
-    }
-    return false;
-  }
-  const inputHash = await hashPassword(plaintext, creds.salt);
-  // Use timing-safe comparison (same length strings, full compare)
-  return inputHash === creds.hash;
-}
-
-async function storeCredentials(plaintext) {
-  const salt = crypto.randomUUID();
-  const hash = await hashPassword(plaintext, salt);
-  const creds = { hash, salt };
-  localStorage.setItem('empire_credentials', JSON.stringify(creds));
-  window._cachedCredentials = creds;
-
-  if (window._firebaseReady && window._settingsDocRef) {
-    await window._setDoc(window._settingsDocRef, { credentials: creds }, { merge: true });
-  }
-  return creds;
-}
-
-// ── LOGIN ──
+// ── LOGIN via Firebase Authentication ──
 async function doLogin() {
-  const check = _rateLimit.check();
-  if (!check.allowed) {
-    document.getElementById('login-err').textContent = check.msg;
-    document.getElementById('login-err').style.display = 'block';
+  const email = (document.getElementById('login-email').value || '').trim();
+  const pw    = document.getElementById('login-pw').value;
+  const err   = document.getElementById('login-err');
+  const btn   = document.getElementById('login-btn');
+
+  err.style.display = 'none';
+
+  if (!email) { err.textContent = 'Voer een e-mailadres in.'; err.style.display = 'block'; return; }
+  if (!pw)    { err.textContent = 'Voer een wachtwoord in.'; err.style.display = 'block'; return; }
+
+  btn.textContent = '...'; btn.disabled = true;
+
+  if (!window._firebaseReady) {
+    // Local fallback mode
+    btn.textContent = 'Inloggen'; btn.disabled = false;
+    err.textContent = 'Firebase niet geconfigureerd.';
+    err.style.display = 'block';
     return;
   }
 
-  const pw  = document.getElementById('login-pw').value;
-  const btn = document.querySelector('#login-overlay .btn-save');
-  if (btn) { btn.textContent = '...'; btn.disabled = true; }
-
-  // Add artificial delay to slow down automated attacks
-  await new Promise(r => setTimeout(r, 400));
-  const ok = await checkPassword(pw);
-
-  if (btn) { btn.textContent = 'Ontgrendelen'; btn.disabled = false; }
-
-  if (ok) {
-    _rateLimit.reset();
-    _session.login();
-    closeLogin();
-    applyAdminUI();
-  } else {
-    _rateLimit.fail();
-    const remaining = _rateLimit.check();
-    document.getElementById('login-err').textContent = remaining.allowed
-      ? 'Onjuist wachtwoord.'
-      : remaining.msg;
-    document.getElementById('login-err').style.display = 'block';
+  try {
+    await window._signIn(email, pw);
+    // onAuthStateChanged handles the rest
+    btn.textContent = 'Inloggen'; btn.disabled = false;
+  } catch(e) {
+    btn.textContent = 'Inloggen'; btn.disabled = false;
+    const code = e.code || '';
+    if (code.includes('wrong-password') || code.includes('invalid-credential') || code.includes('user-not-found')) {
+      err.textContent = 'Onjuist e-mailadres of wachtwoord.';
+    } else if (code.includes('too-many-requests')) {
+      err.textContent = 'Te veel pogingen. Probeer later opnieuw.';
+    } else {
+      err.textContent = 'Inloggen mislukt. Controleer je verbinding.';
+    }
+    err.style.display = 'block';
     document.getElementById('login-pw').value = '';
     document.getElementById('login-pw').focus();
   }
 }
 
-// ── CHANGE PASSWORD ──
+// ── LOGOUT via Firebase ──
+async function doLogout() {
+  if (window._firebaseReady && window._signOut) await window._signOut();
+  _session.logout();
+  applyAdminUI();
+}
+
+// ── CHANGE PASSWORD via Firebase (requires re-authentication) ──
 async function doChangePw() {
   const current = document.getElementById('pw-current').value;
   const newPw   = document.getElementById('pw-new').value;
@@ -1602,29 +1562,29 @@ async function doChangePw() {
     err.style.display = 'block'; return;
   }
 
-  if (btn) { btn.textContent = '...'; btn.disabled = true; }
-  await new Promise(r => setTimeout(r, 300));
-
-  const currentOk = await checkPassword(current);
-  if (!currentOk) {
-    if (btn) { btn.textContent = 'Wachtwoord Opslaan'; btn.disabled = false; }
-    err.textContent = 'Huidig wachtwoord is onjuist.';
-    err.style.display = 'block';
-    return;
-  }
+  btn.textContent = '...'; btn.disabled = true;
 
   try {
-    await storeCredentials(newPw);
+    // Re-authenticate with current password first (Firebase requirement)
+    const user = window._firebaseUser;
+    if (!user) throw new Error('Niet ingelogd');
+    await window._reauthenticate(user.email, current);
+    await window._updatePassword(newPw);
+    btn.textContent = 'Wachtwoord Opslaan'; btn.disabled = false;
+    closeChangePw();
+    alert('Wachtwoord succesvol gewijzigd.');
   } catch(e) {
-    if (btn) { btn.textContent = 'Wachtwoord Opslaan'; btn.disabled = false; }
-    err.textContent = 'Opslaan mislukt. Controleer je verbinding.';
+    btn.textContent = 'Wachtwoord Opslaan'; btn.disabled = false;
+    const code = e.code || '';
+    if (code.includes('wrong-password') || code.includes('invalid-credential')) {
+      err.textContent = 'Huidig wachtwoord is onjuist.';
+    } else if (code.includes('requires-recent-login')) {
+      err.textContent = 'Log opnieuw in en probeer het dan.';
+    } else {
+      err.textContent = 'Wijzigen mislukt: ' + (e.message || 'onbekende fout');
+    }
     err.style.display = 'block';
-    return;
   }
-
-  if (btn) { btn.textContent = 'Wachtwoord Opslaan'; btn.disabled = false; }
-  closeChangePw();
-  alert('Wachtwoord gewijzigd en gesynchroniseerd op alle apparaten.');
 }
 
 function applyAdminUI() {
@@ -1638,9 +1598,8 @@ function applyAdminUI() {
 
 function handleAdminBtn() {
   if (_session.isAdmin) {
-    if (confirm('Beheerdermodus vergrendelen?\n\nKlik op Annuleren om het wachtwoord te wijzigen.')) {
-      _session.logout();
-      applyAdminUI();
+    if (confirm('Uitloggen als beheerder?')) {
+      doLogout();
     } else {
       openChangePw();
     }
@@ -1650,10 +1609,15 @@ function handleAdminBtn() {
 }
 
 function openLogin() {
+  const emailEl = document.getElementById('login-email');
+  if (emailEl) emailEl.value = '';
   document.getElementById('login-pw').value = '';
   document.getElementById('login-err').style.display = 'none';
   document.getElementById('login-overlay').classList.add('open');
-  setTimeout(() => document.getElementById('login-pw').focus(), 100);
+  setTimeout(() => {
+    const el = document.getElementById('login-email') || document.getElementById('login-pw');
+    if (el) el.focus();
+  }, 100);
 }
 
 function closeLogin() {
