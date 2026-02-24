@@ -1387,11 +1387,11 @@ let currentImg = null;
 let currentView = 'grid';
 let currentCategory = 'watches';
 
-// ── ADMIN SESSION — driven by Firebase Auth, not bypassable ──
+// ── ADMIN SESSION — alleen geldig als Firebase auth bevestigt ──
 const _session = (() => {
   let _admin = false;
   let _timer = null;
-  const SESSION_MS = 60 * 60 * 1000; // 60 minuten auto-logout
+  const SESSION_MS = 60 * 60 * 1000;
 
   function _resetTimer() {
     clearTimeout(_timer);
@@ -1403,8 +1403,17 @@ const _session = (() => {
   }
 
   return {
-    get isAdmin() { return _admin; },
+    get isAdmin() {
+      // Double-check against Firebase — if Firebase says not logged in, deny
+      if (window._firebaseReady && !window._firebaseUser) return false;
+      return _admin;
+    },
     login() {
+      // Only allow login if Firebase confirms a real user
+      if (window._firebaseReady && !window._firebaseUser) {
+        console.warn('Toegang geweigerd — geen Firebase sessie.');
+        return;
+      }
       _admin = true;
       _resetTimer();
       ['click','keydown','touchstart'].forEach(e =>
@@ -1421,9 +1430,15 @@ const _session = (() => {
   };
 })();
 
-// isAdmin is read-only from window — cannot be set externally
+// isAdmin is read-only and cannot be set from console
 Object.defineProperty(window, 'isAdmin', {
   get() { return _session.isAdmin; },
+  set() { console.warn('Toegang geweigerd.'); }
+});
+
+// _session zelf ook beschermen tegen console-manipulatie
+Object.defineProperty(window, '_session', {
+  get() { return undefined; },
   set() { console.warn('Toegang geweigerd.'); }
 });
 
